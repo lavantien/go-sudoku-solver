@@ -5,17 +5,22 @@ import (
 )
 
 func main() {
-	jobs := make(chan uint64, 100)
-	results := make(chan uint64, 100)
+	const NUM = 50
+
+	jobs := make(chan uint64, NUM)
+	results := make(chan uint64, NUM)
 
 	go worker(jobs, results)
+	go worker(jobs, results)
+	go worker(jobs, results)
+	go worker(jobs, results)
 
-	for i := uint64(0); i < 100; i++ {
+	for i := uint64(0); i < NUM; i++ {
 		jobs <- i
 	}
 	close(jobs)
 
-	for j := 0; j < 100; j++ {
+	for j := 0; j < NUM; j++ {
 		fmt.Println(<-results)
 	}
 }
