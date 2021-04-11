@@ -1,0 +1,54 @@
+{
+  "todo": [
+    {
+      "assignedTo": {
+        "name": "lavantien"
+      },
+      "category": "implement",
+      "creation_time": "2021-04-11T20:58:50.443Z",
+      "description": {
+        "content": "implement sudoku generation feature for our app",
+        "mime": "text/markdown"
+      },
+      "id": "3",
+      "prio": 0,
+      "references": [],
+      "title": "implement sudoku board generator"
+    }
+  ],
+  "in-progress": [],
+  "testing": [
+    {
+      "assignedTo": {
+        "name": "lavantien"
+      },
+      "category": "test",
+      "creation_time": "2021-04-11T20:53:11.977Z",
+      "description": {
+        "content": "testing edge cases for basic solver, ensure performance",
+        "mime": "text/markdown"
+      },
+      "id": "2",
+      "prio": 0,
+      "references": [],
+      "title": "testing edge cases for basic solver"
+    }
+  ],
+  "done": [
+    {
+      "assignedTo": {
+        "name": "lavantien"
+      },
+      "category": "implement",
+      "creation_time": "2021-04-11T20:48:02.971Z",
+      "description": {
+        "content": "implement basic sudoku solver using backtracking with a presolver to optimize the solution space",
+        "mime": "text/markdown"
+      },
+      "id": "1",
+      "prio": 0,
+      "references": [],
+      "title": "implement basic sudoku solver"
+    }
+  ]
+}
