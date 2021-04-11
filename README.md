@@ -1,2 +1,2 @@
 # go-sudoku-solver
-An Optimized Sudoku Solver written in Go
+An Optimized Sudoku Solver and Generator written in Go
