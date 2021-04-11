@@ -6,7 +6,7 @@ import (
 )
 
 const BOARD_SIZE = 9
-const SUBGRID_COUNT = BOARD_SIZE / 3
+const SUBGRID_COUNT = 3
 
 var grid [BOARD_SIZE][BOARD_SIZE]int
 var isUnsolvedCell [BOARD_SIZE][BOARD_SIZE]bool
