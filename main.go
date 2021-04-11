@@ -5,16 +5,20 @@ import (
 	"time"
 )
 
-const BOARD_SIZE = 9
-const SUBGRID_COUNT = 3
+const (
+	BOARD_SIZE    = 9
+	SUBGRID_COUNT = 3
+)
 
-var grid [BOARD_SIZE][BOARD_SIZE]int
-var isUnsolvedCell [BOARD_SIZE][BOARD_SIZE]bool
-var possibility [BOARD_SIZE][BOARD_SIZE][BOARD_SIZE]int
-var possibilitySize [BOARD_SIZE][BOARD_SIZE]int
-var maxPossibilitySize int
-var recursiveCount int
-var presolveCount int
+var (
+	grid               [BOARD_SIZE][BOARD_SIZE]int
+	isUnsolvedCell     [BOARD_SIZE][BOARD_SIZE]bool
+	possibility        [BOARD_SIZE][BOARD_SIZE][BOARD_SIZE]int
+	possibilitySize    [BOARD_SIZE][BOARD_SIZE]int
+	maxPossibilitySize int
+	recursiveCount     int
+	presolveCount      int
+)
 
 func main() {
 	for i := 0; i < BOARD_SIZE; i++ {
