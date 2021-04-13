@@ -1,5 +1,6 @@
 {
-  "todo": [
+  "todo": [],
+  "in-progress": [
     {
       "assignedTo": {
         "name": "lavantien"
@@ -16,7 +17,6 @@
       "title": "implement sudoku board generator"
     }
   ],
-  "in-progress": [],
   "testing": [
     {
       "assignedTo": {
