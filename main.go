@@ -1,61 +1,48 @@
-package main
+// @algorithm @lc id=37 lang=golang
+// @title sudoku-solver
 
-import (
-	"fmt"
-	"time"
-)
+// leetcode_version_37_sudoku_solver
+package main
 
 const (
 	BOARD_SIZE    = 9
 	SUBGRID_COUNT = 3
 )
 
-var (
-	grid               [BOARD_SIZE][BOARD_SIZE]int
-	isUnsolvedCell     [BOARD_SIZE][BOARD_SIZE]bool
-	possibility        [BOARD_SIZE][BOARD_SIZE][BOARD_SIZE]int
-	possibilitySize    [BOARD_SIZE][BOARD_SIZE]int
-	maxPossibilitySize int
-	recursiveCount     int
-	presolveCount      int
-)
+// @test([["5","3",".",".","7",".",".",".","."],["6",".",".","1","9","5",".",".","."],[".","9","8",".",".",".",".","6","."],["8",".",".",".","6",".",".",".","3"],["4",".",".","8",".","3",".",".","1"],["7",".",".",".","2",".",".",".","6"],[".","6",".",".",".",".","2","8","."],[".",".",".","4","1","9",".",".","5"],[".",".",".",".","8",".",".","7","9"]])=[["5","3","4","6","7","8","9","1","2"],["6","7","2","1","9","5","3","4","8"],["1","9","8","3","4","2","5","6","7"],["8","5","9","7","6","1","4","2","3"],["4","2","6","8","5","3","7","9","1"],["7","1","3","9","2","4","8","5","6"],["9","6","1","5","3","7","2","8","4"],["2","8","7","4","1","9","6","3","5"],["3","4","5","2","8","6","1","7","9"]]
+// @test([[".",".",".","2",".",".",".","6","3"],["3",".",".",".",".","5","4",".","1"],[".",".","1",".",".","3","9","8","."],[".",".",".",".",".",".",".","9","."],[".",".",".","5","3","8",".",".","."],[".","3",".",".",".",".",".",".","."],[".","2","6","3",".",".","5",".","."],["5",".","3","7",".",".",".",".","8"],["4","7",".",".",".","1",".",".","."]])=[["8","5","4","2","1","9","7","6","3"],["3","9","7","8","6","5","4","2","1"],["2","6","1","4","7","3","9","8","5"],["7","8","5","1","2","6","3","9","4"],["6","4","9","5","3","8","1","7","2"],["1","3","2","9","4","7","8","5","6"],["9","2","6","3","8","4","5","1","7"],["5","1","3","7","9","2","6","4","8"],["4","7","8","6","5","1","2","3","9"]]
+func solveSudoku(board [][]byte) {
+	var (
+		grid               [BOARD_SIZE][BOARD_SIZE]int
+		isUnsolvedCell     [BOARD_SIZE][BOARD_SIZE]bool
+		possibility        [BOARD_SIZE][BOARD_SIZE][BOARD_SIZE]int
+		possibilitySize    [BOARD_SIZE][BOARD_SIZE]int
+		maxPossibilitySize int
+	)
 
-func main() {
 	for i := 0; i < BOARD_SIZE; i++ {
-		var tempString string
-		fmt.Scanln(&tempString)
-		for j, value := range tempString {
-			if value != '.' {
-				grid[i][j] = int(value - '0')
-			} else {
+		for j := 0; j < BOARD_SIZE; j++ {
+			if board[i][j] == '.' {
 				grid[i][j] = 0
+			} else {
+				grid[i][j] = int(board[i][j] - '0')
 			}
 		}
 	}
-	tick := time.Now()
-	basicSolver()
-	fmt.Println()
+
+	if !firstLevelPresolver(&grid, &isUnsolvedCell, &possibility, &possibilitySize, maxPossibilitySize) {
+		basicBacktracking(&grid, &isUnsolvedCell, &possibility, &possibilitySize, 0, 0)
+	}
+
 	for i := 0; i < BOARD_SIZE; i++ {
 		for j := 0; j < BOARD_SIZE; j++ {
-			fmt.Print(grid[i][j])
+			board[i][j] = byte(grid[i][j] + '0')
 		}
-		fmt.Println()
-	}
-	fmt.Println()
-	fmt.Println("Presolver step counter:", presolveCount)
-	fmt.Println("Recursive step counter:", recursiveCount)
-	fmt.Println("Execute time:", time.Since(tick))
-}
-
-func basicSolver() {
-	if !firstLevelPresolver() {
-		basicBacktracking(0, 0)
 	}
 }
 
-func firstLevelPresolver() bool {
+func firstLevelPresolver(grid *[BOARD_SIZE][BOARD_SIZE]int, isUnsolvedCell *[BOARD_SIZE][BOARD_SIZE]bool, possibility *[BOARD_SIZE][BOARD_SIZE][BOARD_SIZE]int, possibilitySize *[BOARD_SIZE][BOARD_SIZE]int, maxPossibilitySize int) bool {
 	for {
-		presolveCount++
 		countEmptyCell := 0
 		countSolvedCell := 0
 		for i := 0; i < BOARD_SIZE; i++ {
@@ -65,7 +52,7 @@ func firstLevelPresolver() bool {
 					isUnsolvedCell[i][j] = true
 					possibilitySize[i][j] = 0
 					for k := 1; k <= BOARD_SIZE; k++ {
-						if isFillable(i, j, k) {
+						if isFillable(grid, i, j, k) {
 							possibility[i][j][possibilitySize[i][j]] = k
 							possibilitySize[i][j]++
 						}
@@ -89,8 +76,7 @@ func firstLevelPresolver() bool {
 	}
 }
 
-func basicBacktracking(x int, y int) bool {
-	recursiveCount++
+func basicBacktracking(grid *[BOARD_SIZE][BOARD_SIZE]int, isUnsolvedCell *[BOARD_SIZE][BOARD_SIZE]bool, possibility *[BOARD_SIZE][BOARD_SIZE][BOARD_SIZE]int, possibilitySize *[BOARD_SIZE][BOARD_SIZE]int, x int, y int) bool {
 	if y == BOARD_SIZE {
 		x++
 		y = 0
@@ -99,12 +85,12 @@ func basicBacktracking(x int, y int) bool {
 		}
 	}
 	if !isUnsolvedCell[x][y] {
-		return basicBacktracking(x, y+1)
+		return basicBacktracking(grid, isUnsolvedCell, possibility, possibilitySize, x, y+1)
 	} else {
 		for k := 0; k < possibilitySize[x][y]; k++ {
-			if isFillable(x, y, possibility[x][y][k]) {
+			if isFillable(grid, x, y, possibility[x][y][k]) {
 				grid[x][y] = possibility[x][y][k]
-				if basicBacktracking(x, y+1) {
+				if basicBacktracking(grid, isUnsolvedCell, possibility, possibilitySize, x, y+1) {
 					return true
 				}
 			}
@@ -114,7 +100,7 @@ func basicBacktracking(x int, y int) bool {
 	}
 }
 
-func isFillable(x int, y int, k int) bool {
+func isFillable(grid *[BOARD_SIZE][BOARD_SIZE]int, x int, y int, k int) bool {
 	for i := 0; i < BOARD_SIZE; i++ {
 		subgridX := x/SUBGRID_COUNT*SUBGRID_COUNT + i/SUBGRID_COUNT
 		subgridY := y/SUBGRID_COUNT*SUBGRID_COUNT + i%SUBGRID_COUNT
