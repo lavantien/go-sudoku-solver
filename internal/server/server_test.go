@@ -649,6 +649,91 @@ func TestGenerateAndHistoryPagesRender(t *testing.T) {
 	}
 }
 
+func TestHistoryPagePaginationAndInvalidPage(t *testing.T) {
+	srv, st := newServer(t)
+	ts, c := startSite(t, srv.Handler())
+	for range config.HistoryPageSize {
+		if _, err := st.InsertRun(puzzle.Sample81, "test", nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, page1 := getBody(t, c, ts.URL+config.HistoryPagePath)
+	if code != http.StatusOK {
+		t.Fatalf("page 1 status: got %d want 200", code)
+	}
+	if next := fmt.Sprintf("%s?%s=2", config.HistoryPagePath, config.QueryPage); !strings.Contains(page1, next) {
+		t.Errorf("page 1 lacks next link %q", next)
+	}
+	if strings.Contains(page1, config.QueryPage+"=0") {
+		t.Errorf("page 1 must not link to page 0: %q", page1)
+	}
+	if n := strings.Count(page1, `class="mono"`); n != config.HistoryPageSize {
+		t.Errorf("page 1 rows: got %d want %d", n, config.HistoryPageSize)
+	}
+	code, page2 := getBody(t, c, ts.URL+config.HistoryPagePath+"?"+config.QueryPage+"=2")
+	if code != http.StatusOK {
+		t.Fatalf("page 2 status: got %d want 200", code)
+	}
+	if prev := fmt.Sprintf("%s?%s=1", config.HistoryPagePath, config.QueryPage); !strings.Contains(page2, prev) {
+		t.Errorf("page 2 lacks prev link %q", prev)
+	}
+	if next := fmt.Sprintf("%s?%s=3", config.HistoryPagePath, config.QueryPage); strings.Contains(page2, next) {
+		t.Errorf("partial page 2 must not link to page 3: %q", page2)
+	}
+	for _, q := range []string{"0", "-1", "abc", "1x"} {
+		code, body := getBody(t, c, ts.URL+config.HistoryPagePath+"?"+config.QueryPage+"="+q)
+		if code != http.StatusBadRequest || !strings.Contains(body, "invalid page") {
+			t.Errorf("page %q: status %d body %q, want 400 invalid page", q, code, body)
+		}
+	}
+}
+
+func TestRunPageRejectsNonNumericID(t *testing.T) {
+	srv, _ := newServer(t)
+	ts, c := startSite(t, srv.Handler())
+	code, _ := getBody(t, c, ts.URL+"/runs/abc")
+	if code != http.StatusNotFound {
+		t.Errorf("non numeric run page id: status %d want 404", code)
+	}
+}
+
+func TestGenerateFragmentRejectsBadParams(t *testing.T) {
+	srv, _ := newServer(t)
+	ts, c := startSite(t, srv.Handler())
+	cases := []struct {
+		name string
+		form url.Values
+	}{
+		{"bad clues", url.Values{config.FlagClues: {"abc"}, config.FlagSeed: {"1"}}},
+		{"bad seed", url.Values{config.FlagClues: {"40"}, config.FlagSeed: {"0x10"}}},
+		{"clues out of range", url.Values{config.FlagClues: {"5"}, config.FlagSeed: {"1"}}},
+	}
+	for _, tc := range cases {
+		resp, body := postForm(t, c, ts.URL+config.FragmentGenPath, tc.form)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: status: got %d want 400: %s", tc.name, resp.StatusCode, body)
+		}
+		if !strings.Contains(body, "badge") && !strings.Contains(body, "error") {
+			t.Errorf("%s: body lacks the error cue: %q", tc.name, body)
+		}
+	}
+}
+
+func TestSolveFragmentRejectsInvalidCharacter(t *testing.T) {
+	srv, _ := newServer(t)
+	ts, c := startSite(t, srv.Handler())
+	grid := []byte(puzzle.Sample81)
+	grid[40] = 'x'
+	form := url.Values{config.FormGrid81: {string(grid)}}
+	resp, body := postForm(t, c, ts.URL+config.FragmentSolvePath, form)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("invalid char status: got %d want 400: %s", resp.StatusCode, body)
+	}
+	if !strings.Contains(body, "invalid character") {
+		t.Errorf("body lacks the invalid character cue: %q", body)
+	}
+}
+
 func TestServerGracefulShutdownNoLeak(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	path := filepath.Join(t.TempDir(), "shutdown.db")

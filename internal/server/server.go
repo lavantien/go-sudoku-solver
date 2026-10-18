@@ -19,16 +19,25 @@ import (
 	"github.com/lavantien/go-sudoku-solver/web"
 )
 
+type RunStore interface {
+	CountRuns() (int64, error)
+	InsertRun(input81, source string, methods []store.MethodRow) (int64, error)
+	ListRuns(limit, offset int) ([]store.RunSummary, error)
+	GetRun(id int64) (*store.RunDetail, error)
+	InsertPuzzle(grid81 string, clues int, seed int64) (int64, error)
+	ListPuzzles(limit, offset int) ([]store.Puzzle, error)
+}
+
 type Server struct {
 	cfg       config.Config
-	store     *store.Store
+	store     RunStore
 	log       *slog.Logger
 	http      *http.Server
 	handler   http.Handler
 	templates *templates
 }
 
-func New(ctx context.Context, cfg config.Config, st *store.Store, logger *slog.Logger) *Server {
+func New(ctx context.Context, cfg config.Config, st RunStore, logger *slog.Logger) *Server {
 	logging.Enter(logger, "server.new", "addr", cfg.Server.Addr)
 	s := &Server{
 		cfg:       cfg,
