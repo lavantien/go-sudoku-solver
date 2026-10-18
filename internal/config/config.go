@@ -27,6 +27,33 @@ const (
 	LabelCover        = "Exact cover over the boolean incidence matrix"
 	LabelAnneal       = "Simulated annealing with restart portfolio"
 	LabelRace         = "Parallel portfolio race with mined ordering"
+
+	Version = "v1.0"
+	BinName = "sudoku"
+
+	LabelFmt = "\n%s:\n"
+
+	CmdSolve   = "solve"
+	CmdGen     = "gen"
+	CmdVersion = "version"
+
+	UsageSolve   = "solve a puzzle read from stdin"
+	UsageGen     = "generate a puzzle with a unique solution"
+	UsageVersion = "print the version"
+
+	UsageHeaderFmt = "usage: %s <command> [args]\ncommands:\n"
+	UsageCmdFmt    = "  %-7s %s\n"
+	RunErrFmt      = "%s %s: %v\n"
+	VersionFmt     = "%s %s\n"
+
+	FlagClues      = "clues"
+	FlagSeed       = "seed"
+	FlagCluesUsage = "target clue count between 17 and 81"
+	FlagSeedUsage  = "generator seed"
+
+	EmptyChar = '.'
+
+	ErrSilentExit = "silent exit"
 )
 
 var MethodIDs = [4]string{"propagate", "cover", "anneal", "race"}
