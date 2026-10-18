@@ -135,11 +135,11 @@ func TestRunCoverageFlagsDriveTheRun(t *testing.T) {
 }
 
 func TestRunCoverageRegisteredInRegistry(t *testing.T) {
-	c, ok := Lookup("coverage")
+	c, ok := Lookup(config.CmdCoverage)
 	if !ok {
 		t.Fatal("coverage command not registered")
 	}
-	if c.Name != "coverage" || c.Usage == "" {
+	if c.Name != config.CmdCoverage || c.Usage == "" {
 		t.Errorf("registered command = %+v", c)
 	}
 }

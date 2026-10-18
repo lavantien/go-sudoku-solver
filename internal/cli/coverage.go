@@ -12,43 +12,32 @@ import (
 	"github.com/lavantien/go-sudoku-solver/internal/logging"
 )
 
-const (
-	cmdCoverage    = "coverage"
-	usageCoverage  = "refresh the readme coverage badge: -profile -readme"
-	flagProfile    = "profile"
-	flagReadme     = "readme"
-	flagProfileUse = "Go cover profile path"
-	flagReadmeUse  = "readme path to update"
-	defaultProfile = "coverage.out"
-	defaultReadme  = "readme.md"
-)
-
 func init() {
-	Register(Command{Name: cmdCoverage, Usage: usageCoverage, Run: runCoverage})
+	Register(Command{Name: config.CmdCoverage, Usage: config.UsageCoverage, Run: runCoverage})
 }
 
 func runCoverage(_ context.Context, cfg config.Config, args []string) error {
 	logger := logging.New(cfg.LogLevel)
-	logging.Enter(logger, cmdCoverage)
-	fs := flag.NewFlagSet(cmdCoverage, flag.ContinueOnError)
+	logging.Enter(logger, config.CmdCoverage)
+	fs := flag.NewFlagSet(config.CmdCoverage, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	profile := fs.String(flagProfile, defaultProfile, flagProfileUse)
-	readme := fs.String(flagReadme, defaultReadme, flagReadmeUse)
+	profile := fs.String(config.FlagProfile, config.DefaultProfile, config.FlagProfileUsage)
+	readme := fs.String(config.FlagReadme, config.DefaultReadme, config.FlagReadmeUsage)
 	if err := fs.Parse(args); err != nil {
-		logging.Fail(logger, cmdCoverage, err)
+		logging.Fail(logger, config.CmdCoverage, err)
 		return err
 	}
 	if fs.NArg() > 0 {
 		err := fmt.Errorf("unexpected argument %q", fs.Arg(0))
-		logging.Fail(logger, cmdCoverage, err)
+		logging.Fail(logger, config.CmdCoverage, err)
 		return err
 	}
 	pct, err := coverageRun(*profile, *readme)
 	if err != nil {
-		logging.Fail(logger, cmdCoverage, err)
+		logging.Fail(logger, config.CmdCoverage, err)
 		return err
 	}
-	logging.Exit(logger, cmdCoverage, "pct", fmt.Sprintf("%.1f", pct))
+	logging.Exit(logger, config.CmdCoverage, "pct", fmt.Sprintf("%.1f", pct))
 	return nil
 }
 

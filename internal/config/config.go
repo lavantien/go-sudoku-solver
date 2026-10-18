@@ -267,3 +267,14 @@ func envString(name string) (string, bool) {
 	}
 	return v, true
 }
+
+const (
+	CmdCoverage      = "coverage"
+	UsageCoverage    = "refresh the readme coverage badge: -profile -readme"
+	FlagProfile      = "profile"
+	FlagReadme       = "readme"
+	FlagProfileUsage = "Go cover profile path"
+	FlagReadmeUsage  = "readme path to update"
+	DefaultProfile   = "coverage.out"
+	DefaultReadme    = "readme.md"
+)
