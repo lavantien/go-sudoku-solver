@@ -39,3 +39,35 @@ const Anneal81 = "6.3..4.1." +
 	".19.7.2.8" +
 	"8.6.2.74." +
 	"2.4.3..5."
+
+const SampleExtreme81 = "..4...8.." +
+	"32...9.1." +
+	".....13.." +
+	"...1...5." +
+	"......4.8" +
+	".6...2..." +
+	"..8.9.5.." +
+	"...2....." +
+	"..6.3..9."
+
+const SampleExtremeSolution81 = "154623879" +
+	"327849615" +
+	"689751342" +
+	"832174956" +
+	"971365428" +
+	"465982137" +
+	"218497563" +
+	"593216784" +
+	"746538291"
+
+type Sample struct {
+	Label  string
+	Grid81 string
+}
+
+func Samples() []Sample {
+	return []Sample{
+		{Label: "classic", Grid81: Sample81},
+		{Label: "extreme complexity", Grid81: SampleExtreme81},
+	}
+}

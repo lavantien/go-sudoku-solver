@@ -58,6 +58,17 @@ func TestExtremeSampleExceedsClassicSteps(t *testing.T) {
 	}
 }
 
+func TestExtremeSampleStepsPinned(t *testing.T) {
+	extreme, err := sudoku.Parse81(SampleExtreme81)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := solver.Propagate(context.Background(), extreme, config.Defaults())
+	if res.Steps != 4646 {
+		t.Errorf("extreme steps: got %d, want 4646", res.Steps)
+	}
+}
+
 func TestSamplesList(t *testing.T) {
 	got := Samples()
 	if len(got) != 2 {

@@ -52,7 +52,7 @@ FZ := $(CGO_ENV) GOMEMLIMIT=$(MEMSOFT) go test $(TAGS)
 
 RELEASE_FLAGS := -trimpath -ldflags "-s -w"
 
-.PHONY: help all build test test-pkg test-one race vet fmt lint lint-pkg typecheck sloc fuzz fuzz-one mutate memtest e2e verify vendor-assets diagrams gen train run server seed tidy clean coverage screenshots release topics release-upload
+.PHONY: help all build test test-pkg test-one race vet fmt lint lint-pkg typecheck sloc fuzz fuzz-one mutate memtest e2e verify vendor-assets diagrams gen train evolve bench run server seed tidy clean coverage screenshots release topics release-upload
 
 help: ## show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\nTargets:\n"} \
@@ -168,6 +168,12 @@ gen: build ## print one generated puzzle in the 9-line input format
 
 train: ## regenerate the committed race-order policy table
 	$(GO) generate ./internal/policy
+
+evolve: ## run the evolutionary hardest-puzzle search (tools/evolve)
+	$(GO) run ./tools/evolve
+
+bench: ## benchmark the solver methods on the extreme and classic samples
+	$(CGO_ENV) GOMEMLIMIT=$(MEMSOFT) go test $(TAGS) -bench=. -benchmem -run '^$$' ./internal/solver
 
 run server: ## run the web server (http://$(ADDR))
 	$(GO) run $(TAGS) ./cmd/sudoku serve --addr $(ADDR) --db $(DB)
