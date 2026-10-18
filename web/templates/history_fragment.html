@@ -1,0 +1,11 @@
+{{define "history_rows"}}
+{{range .}}
+<tr>
+<td><a href="{{.URL}}">#{{.ID}}</a></td>
+<td>{{.CreatedAt}}</td>
+<td class="mono">{{.Input81}}</td>
+<td>{{.Source}}</td>
+<td>{{if .SolvedAny}}<span class="badge solved">solved</span>{{else}}<span class="badge unsolved">unsolved</span>{{end}}</td>
+</tr>
+{{end}}
+{{end}}

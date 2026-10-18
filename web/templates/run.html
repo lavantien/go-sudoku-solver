@@ -1,0 +1,13 @@
+{{define "content"}}
+<section class="panel">
+<h1>run #{{.ID}}</h1>
+<p class="meta">created: {{.CreatedAt}}, source: {{.Source}}</p>
+<h2>input</h2>
+{{template "grid_table" .InputRows}}
+<p class="meta mono">{{.Input81}}</p>
+<div class="cards">
+{{template "method_cards" .Cards}}
+</div>
+<p><a href="{{.Routes.History}}">back to history</a></p>
+</section>
+{{end}}

@@ -1,0 +1,23 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sudoku solver</title>
+<link rel="stylesheet" href="{{.Routes.Static}}app.css">
+<script src="{{.Routes.Static}}htmx.min.js"></script>
+<script src="{{.Routes.Static}}app.js" defer></script>
+</head>
+<body>
+<header>
+<nav>
+<a href="{{.Routes.Home}}">solve</a>
+<a href="{{.Routes.Generate}}">generate</a>
+<a href="{{.Routes.History}}">history</a>
+</nav>
+</header>
+<main>
+{{template "content" .}}
+</main>
+</body>
+</html>{{end}}

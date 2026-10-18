@@ -1,0 +1,7 @@
+{{define "fragment_puzzle"}}
+<article class="card">
+<h2>generated puzzle</h2>
+{{template "grid_table" .Rows}}
+<p class="meta">id: {{.ID}}, clues: {{.Clues}}, seed: {{.Seed}}</p>
+</article>
+{{end}}

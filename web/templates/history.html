@@ -1,0 +1,15 @@
+{{define "content"}}
+<section class="panel">
+<h1>history</h1>
+<table class="runs">
+<thead><tr><th>id</th><th>created</th><th>input</th><th>source</th><th>solved</th></tr></thead>
+<tbody>
+{{template "history_rows" .Rows}}
+</tbody>
+</table>
+<p class="pager">
+{{if .PrevURL}}<a href="{{.PrevURL}}">prev</a>{{end}}
+{{if .NextURL}}<a href="{{.NextURL}}">next</a>{{end}}
+</p>
+</section>
+{{end}}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -68,11 +69,6 @@ type puzzlesJSON struct {
 	Puzzles []puzzleJSON `json:"puzzles"`
 }
 
-type generateJSON struct {
-	Clues int    `json:"clues"`
-	Seed  uint64 `json:"seed"`
-}
-
 type healthJSON struct {
 	Status string `json:"status"`
 }
@@ -121,7 +117,7 @@ func getBody(t *testing.T, c *http.Client, rawurl string) (int, string) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	var b strings.Builder
-	if _, err := b.ReadFrom(resp.Body); err != nil {
+	if _, err := io.Copy(&b, resp.Body); err != nil {
 		t.Fatal(err)
 	}
 	return resp.StatusCode, b.String()
@@ -135,13 +131,11 @@ func decodeJSON(t *testing.T, c *http.Client, rawurl string, into any) (int, str
 	}
 	defer func() { _ = resp.Body.Close() }()
 	var raw strings.Builder
-	if _, err := raw.ReadFrom(resp.Body); err != nil {
+	if _, err := io.Copy(&raw, resp.Body); err != nil {
 		t.Fatal(err)
 	}
-	if resp.StatusCode < 300 {
-		if err := json.Unmarshal([]byte(raw.String()), into); err != nil {
-			t.Fatalf("decode %s: %v", rawurl, err)
-		}
+	if err := json.Unmarshal([]byte(raw.String()), into); err != nil {
+		t.Fatalf("decode %s: %v", rawurl, err)
 	}
 	return resp.StatusCode, raw.String()
 }
@@ -154,7 +148,7 @@ func postJSON(t *testing.T, c *http.Client, rawurl string, body string) (*http.R
 	}
 	defer func() { _ = resp.Body.Close() }()
 	var b strings.Builder
-	if _, err := b.ReadFrom(resp.Body); err != nil {
+	if _, err := io.Copy(&b, resp.Body); err != nil {
 		t.Fatal(err)
 	}
 	return resp, b.String()
@@ -168,7 +162,7 @@ func postForm(t *testing.T, c *http.Client, rawurl string, form url.Values) (*ht
 	}
 	defer func() { _ = resp.Body.Close() }()
 	var b strings.Builder
-	if _, err := b.ReadFrom(resp.Body); err != nil {
+	if _, err := io.Copy(&b, resp.Body); err != nil {
 		t.Fatal(err)
 	}
 	return resp, b.String()
@@ -252,6 +246,9 @@ func TestSeedRunPersistsOncePerDatabase(t *testing.T) {
 	}
 	if n != 1 {
 		t.Fatalf("runs after restart: got %d want 1", n)
+	}
+	if err := st2.Close(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -409,7 +406,7 @@ func TestAPISolveReturnsRunAndPersists(t *testing.T) {
 	}
 	exact := map[string]bool{config.MethodIDs[0]: false, config.MethodIDs[1]: false, config.MethodIDs[3]: false}
 	for _, m := range out.Methods {
-		if want, ok := exact[m.Method]; ok {
+		if _, ok := exact[m.Method]; ok {
 			if m.Grid81 != puzzle.SampleSolution81 {
 				t.Errorf("api solve %s grid: got %q want the sample solution", m.Method, m.Grid81)
 			}

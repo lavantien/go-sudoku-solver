@@ -1,0 +1,11 @@
+{{define "content"}}
+<section class="panel">
+<h1>generate</h1>
+<form hx-post="{{.Routes.GenFragment}}" hx-target="#puzzle" hx-swap="innerHTML">
+<label>clues <input type="number" name="{{.FieldClues}}" min="17" max="81" value="{{.Clues}}"></label>
+<label>seed <input type="number" name="{{.FieldSeed}}" min="0" value="{{.Seed}}"></label>
+<p><button type="submit" class="primary">generate</button></p>
+</form>
+</section>
+<section id="puzzle" aria-live="polite"></section>
+{{end}}

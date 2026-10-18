@@ -1,0 +1,14 @@
+{{define "content"}}
+<section class="panel">
+<h1>solve</h1>
+<p class="hint">pick a sample or paste 9 lines of digits and dots</p>
+<div class="samples">
+{{range .Samples}}<button type="button" class="sample-btn" data-grid="{{.Grid81}}">{{.Label}}</button>
+{{end}}</div>
+<form hx-post="{{.Routes.SolveFragment}}" hx-target="#results" hx-swap="innerHTML">
+<textarea id="grid-input" name="{{.Field}}" rows="9" spellcheck="false">{{.Grid}}</textarea>
+<p><button type="submit" class="primary">solve</button></p>
+</form>
+</section>
+<section id="results" aria-live="polite"></section>
+{{end}}

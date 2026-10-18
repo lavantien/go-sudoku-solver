@@ -1,0 +1,29 @@
+{{define "grid_table"}}<table class="grid">
+{{range .}}<tr>
+{{range $i, $c := .}}{{if or (eq $i 3) (eq $i 6)}}<td class="pipe">|</td>{{end}}<td>{{$c}}</td>{{end}}
+</tr>
+{{end}}</table>{{end}}
+
+{{define "method_cards"}}
+{{range .}}
+<article class="card{{if .Solved}} is-solved{{else}} is-unsolved{{end}}">
+<h2>{{.Label}}</h2>
+{{template "grid_table" .Rows}}
+<p class="meta">steps: {{.Steps}}, time: {{.Duration}}, {{if .Solved}}<span class="badge solved">solved</span>{{else}}<span class="badge unsolved">unsolved</span>{{end}}</p>
+</article>
+{{end}}
+{{end}}
+
+{{define "solve_error"}}
+<article class="card error">
+<h2>invalid grid</h2>
+<p class="meta">{{.Message}}</p>
+</article>
+{{end}}
+
+{{define "fragment_solve"}}
+<p class="run-link">run <a href="{{.RunURL}}">#{{.RunID}}</a></p>
+<div class="cards">
+{{template "method_cards" .Cards}}
+</div>
+{{end}}
