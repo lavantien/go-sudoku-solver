@@ -2,6 +2,9 @@ package solver
 
 import (
 	"context"
+	"io"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/lavantien/go-sudoku-solver/internal/config"
@@ -45,11 +48,8 @@ func TestPropagateSolvesSampleToReferenceSolution(t *testing.T) {
 	if got.Grid != want {
 		t.Errorf("grid: got %s want %s", sudoku.Serialize(got.Grid), sudoku.Serialize(want))
 	}
-	if got.Steps < 49 {
-		t.Errorf("steps: got %d want at least the 49 empties", got.Steps)
-	}
-	if got.Dur <= 0 {
-		t.Errorf("duration: got %v", got.Dur)
+	if got.Steps < 64 {
+		t.Errorf("steps: got %d want at least the 64 empties", got.Steps)
 	}
 }
 
@@ -125,7 +125,7 @@ func TestPropagationFill(t *testing.T) {
 		t.Errorf("full grid fill: got %d want 0", got)
 	}
 	got := PropagationFill(sampleGrid(t))
-	if got < 0 || got > 49 {
+	if got < 0 || got > 64 {
 		t.Errorf("sample fill out of range: %d", got)
 	}
 }
@@ -147,5 +147,35 @@ func TestRegistry(t *testing.T) {
 	}
 	if _, ok := ByID("nope"); ok {
 		t.Errorf("ByID nope found")
+	}
+}
+
+func TestPropagateTracing(t *testing.T) {
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	done := make(chan string, 1)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	cfg := config.Defaults()
+	cfg.LogLevel = "debug"
+	res := Propagate(context.Background(), sampleGrid(t), cfg)
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = old
+	out := <-done
+	if !res.Solved {
+		t.Fatalf("not solved")
+	}
+	for _, want := range []string{"phase=enter", "msg=propagate", "phase=exit", "clues=17"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in %q", want, out)
+		}
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/lavantien/go-sudoku-solver/internal/config"
 )
 
-const allDigits = 0x1FF
+const AllDigits = 0x1FF
 
 func digitBit(d int) uint16 {
 	return 1 << (d - 1)
@@ -47,7 +47,7 @@ func BoxUsed(g Grid, b int) uint16 {
 
 func Candidates(g Grid, i int) uint16 {
 	used := RowUsed(g, CellRow(i)) | ColUsed(g, CellCol(i)) | BoxUsed(g, CellBox(i))
-	return ^used & allDigits
+	return ^used & AllDigits
 }
 
 func Popcount(m uint16) int {
@@ -75,4 +75,28 @@ func MRVCell(g Grid) int {
 		}
 	}
 	return best
+}
+
+func UnitCells(u int) [config.Size]int {
+	var cells [config.Size]int
+	switch {
+	case u < config.Size:
+		for c := range config.Size {
+			cells[c] = u*config.Size + c
+		}
+	case u < 2*config.Size:
+		col := u - config.Size
+		for r := range config.Size {
+			cells[r] = r*config.Size + col
+		}
+	default:
+		b := u - 2*config.Size
+		base := (b/config.Box)*config.Box*config.Size + (b%config.Box)*config.Box
+		for dr := range config.Box {
+			for dc := range config.Box {
+				cells[dr*config.Box+dc] = base + dr*config.Size + dc
+			}
+		}
+	}
+	return cells
 }

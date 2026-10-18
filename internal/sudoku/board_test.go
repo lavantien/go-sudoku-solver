@@ -140,6 +140,26 @@ func TestFirstSetDigit(t *testing.T) {
 	}
 }
 
+func TestUnitCells(t *testing.T) {
+	cases := []struct {
+		u    int
+		want [9]int
+	}{
+		{0, [9]int{0, 1, 2, 3, 4, 5, 6, 7, 8}},
+		{4, [9]int{36, 37, 38, 39, 40, 41, 42, 43, 44}},
+		{9, [9]int{0, 9, 18, 27, 36, 45, 54, 63, 72}},
+		{17, [9]int{8, 17, 26, 35, 44, 53, 62, 71, 80}},
+		{18, [9]int{0, 1, 2, 9, 10, 11, 18, 19, 20}},
+		{22, [9]int{30, 31, 32, 39, 40, 41, 48, 49, 50}},
+		{26, [9]int{60, 61, 62, 69, 70, 71, 78, 79, 80}},
+	}
+	for _, tc := range cases {
+		if got := UnitCells(tc.u); got != tc.want {
+			t.Errorf("unit %d: got %v want %v", tc.u, got, tc.want)
+		}
+	}
+}
+
 func TestMRVCell(t *testing.T) {
 	full := gridFromString(t, solvedFixture)
 	if got := MRVCell(full); got != -1 {

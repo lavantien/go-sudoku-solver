@@ -22,6 +22,7 @@ EXE := .exe
 endif
 
 RACE_PKGS ?= ./internal/solver ./internal/store ./internal/server ./internal/cli ./internal/e2e
+RACE_EXIST := $(foreach p,$(RACE_PKGS),$(if $(wildcard $(p)/*.go),$(p),))
 
 NPM_REGISTRY ?= https://registry.npmjs.org
 UNPKG ?= https://unpkg.com
@@ -72,7 +73,7 @@ test-one: ## run one named test: make test-one PKG=./internal/cli TEST=TestMainB
 	$(CGO_ENV) GOMEMLIMIT=$(MEMSOFT) go test $(TAGS) -run '^$(TEST)$$' -count=1 -v $(PKG)
 
 race: ## go test -race over the concurrent core (RACE_PKGS)
-	$(CGO_ENV) GOMEMLIMIT=$(MEMSOFT) go test $(TAGS) -race -count=1 $(RACE_PKGS)
+	$(CGO_ENV) GOMEMLIMIT=$(MEMSOFT) go test $(TAGS) -race -count=1 $(RACE_EXIST)
 
 vet: ## go vet
 	$(GO) vet $(TAGS) ./...

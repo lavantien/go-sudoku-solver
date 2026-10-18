@@ -24,9 +24,16 @@ type Method struct {
 }
 
 func All() []Method {
-	return nil
+	return []Method{
+		{ID: config.MethodIDs[0], Label: config.LabelPropagate, Fn: Propagate},
+	}
 }
 
 func ByID(id string) (Method, bool) {
+	for _, m := range All() {
+		if m.ID == id {
+			return m, true
+		}
+	}
 	return Method{}, false
 }
