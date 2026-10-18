@@ -26,6 +26,7 @@ type Method struct {
 func All() []Method {
 	return []Method{
 		{ID: config.MethodIDs[0], Label: config.LabelPropagate, Fn: Propagate},
+		{ID: config.MethodIDs[1], Label: config.LabelCover, Fn: Cover},
 	}
 }
 
