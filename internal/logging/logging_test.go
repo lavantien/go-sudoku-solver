@@ -1,8 +1,10 @@
 package logging
 
 import (
+	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -27,6 +29,44 @@ func captureStderr(t *testing.T, fn func()) string {
 	}
 	os.Stderr = old
 	return <-done
+}
+
+func TestDiscardHandlerMethods(t *testing.T) {
+	h := discardHandler{}
+	if h.Enabled(context.Background(), slog.LevelError) {
+		t.Error("discard handler must report every level disabled")
+	}
+	if err := h.Handle(context.Background(), slog.Record{}); err != nil {
+		t.Errorf("handle: %v", err)
+	}
+	wa, ok := h.WithAttrs([]slog.Attr{slog.String("k", "v")}).(discardHandler)
+	if !ok || wa.Enabled(context.Background(), slog.LevelDebug) {
+		t.Errorf("with attrs must keep discarding: %#v", wa)
+	}
+	wg, ok := h.WithGroup("g").(discardHandler)
+	if !ok || wg.Enabled(context.Background(), slog.LevelDebug) {
+		t.Errorf("with group must keep discarding: %#v", wg)
+	}
+}
+
+func TestTextHandlerLevelCases(t *testing.T) {
+	for _, level := range []string{"debug", "info", "warn", "error", "nonsense"} {
+		l := New(level)
+		if l == nil {
+			t.Fatalf("level %q: nil logger", level)
+		}
+	}
+	out := captureStderr(t, func() {
+		l := New("warn")
+		l.Info("hidden")
+		l.Error("shown")
+	})
+	if strings.Contains(out, "hidden") {
+		t.Errorf("info leaked at warn level: %q", out)
+	}
+	if !strings.Contains(out, "shown") {
+		t.Errorf("error missing at warn level: %q", out)
+	}
 }
 
 func TestDiscardByDefault(t *testing.T) {

@@ -108,6 +108,48 @@ func TestLoadEnvOverrides(t *testing.T) {
 	}
 }
 
+func TestLoadMalformedEnvKeepsDefaults(t *testing.T) {
+	cases := []struct {
+		name string
+		env  map[string]string
+		want func(Config) bool
+	}{
+		{"workers", map[string]string{"SUDOKU_WORKERS": "two"}, func(c Config) bool { return c.Workers == 0 }},
+		{"anneal restarts", map[string]string{"SUDOKU_ANNEAL_RESTARTS": "x"}, func(c Config) bool { return c.Anneal.Restarts == 4 }},
+		{"anneal seed", map[string]string{"SUDOKU_ANNEAL_SEED": "-1"}, func(c Config) bool { return c.Anneal.Seed == 1 }},
+		{"cover node cap", map[string]string{"SUDOKU_COVER_NODE_CAP": "big"}, func(c Config) bool { return c.CoverNodeCap == 1<<20 }},
+		{"gen seed", map[string]string{"SUDOKU_GEN_SEED": "0x1f"}, func(c Config) bool { return c.Gen.Seed == 1 }},
+		{"server read timeout", map[string]string{"SUDOKU_SERVER_READ_TIMEOUT": "soon"}, func(c Config) bool { return c.Server.ReadTimeout == 5*time.Second }},
+		{"server write timeout", map[string]string{"SUDOKU_SERVER_WRITE_TIMEOUT": "10"}, func(c Config) bool { return c.Server.WriteTimeout == 10*time.Second }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			if got := Load(); !tc.want(got) {
+				t.Errorf("Load with %v: got %+v", tc.env, got)
+			}
+		})
+	}
+}
+
+func TestMethodLabel(t *testing.T) {
+	for i, id := range MethodIDs[:3] {
+		if got := MethodLabel(id); got == "" {
+			t.Errorf("method label for %q is empty", id)
+		} else if got != methodLabels[i] {
+			t.Errorf("method label for %q: got %q want %q", id, got, methodLabels[i])
+		}
+	}
+	if got := MethodLabel("race"); got != LabelRace {
+		t.Errorf("race label: got %q want %q", got, LabelRace)
+	}
+	if got := MethodLabel("bogus"); got != "" {
+		t.Errorf("unknown id label: got %q want empty", got)
+	}
+}
+
 func TestLoadWithoutEnvGivesDefaults(t *testing.T) {
 	if got := Load(); got != Defaults() {
 		t.Errorf("Load without env: got %+v want %+v", got, Defaults())
