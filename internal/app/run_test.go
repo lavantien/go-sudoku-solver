@@ -13,8 +13,10 @@ import (
 	"github.com/lavantien/go-sudoku-solver/internal/sudoku"
 )
 
-var stepDigits = regexp.MustCompile(`Step count: [0-9]+`)
-var timeDigits = regexp.MustCompile(`Execution time: [0-9]+\.[0-9]+`)
+var (
+	stepDigits = regexp.MustCompile(`Step count: [0-9]+`)
+	timeDigits = regexp.MustCompile(`Execution time: [0-9]+\.[0-9]+`)
+)
 
 func normalizeReport(s string) string {
 	s = stepDigits.ReplaceAllString(s, "Step count: 0")
@@ -50,9 +52,9 @@ func goldenReport(initial, solved sudoku.Grid) string {
 	for _, id := range config.MethodIDs {
 		b.WriteString(config.Separator + "\n")
 		b.WriteString(sudoku.RenderGrid(solved))
-		b.WriteString(fmt.Sprintf(config.LabelFmt, config.MethodLabel(id)))
-		b.WriteString(fmt.Sprintf(config.StepFmt, 0))
-		b.WriteString(fmt.Sprintf(config.TimeFmt, 0))
+		_, _ = fmt.Fprintf(&b, config.LabelFmt, config.MethodLabel(id))
+		_, _ = fmt.Fprintf(&b, config.StepFmt, 0)
+		_, _ = fmt.Fprintf(&b, config.TimeFmt, 0.0)
 		b.WriteString(config.Separator + "\n")
 	}
 	return b.String()

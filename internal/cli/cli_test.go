@@ -31,23 +31,23 @@ func withCapture(t *testing.T, stdin string, fn func()) (string, string) {
 	if _, err := io.WriteString(iw, stdin); err != nil {
 		t.Fatal(err)
 	}
-	iw.Close()
+	_ = iw.Close()
 	oldIn, oldOut, oldErr := os.Stdin, os.Stdout, os.Stderr
 	os.Stdin, os.Stdout, os.Stderr = ir, ow, ew
 	defer func() {
 		os.Stdin, os.Stdout, os.Stderr = oldIn, oldOut, oldErr
-		ow.Close()
-		ew.Close()
-		or.Close()
-		er.Close()
+		_ = ow.Close()
+		_ = ew.Close()
+		_ = or.Close()
+		_ = er.Close()
 	}()
 	var outBuf, errBuf bytes.Buffer
 	done := make(chan struct{}, 2)
-	go func() { io.Copy(&outBuf, or); done <- struct{}{} }()
-	go func() { io.Copy(&errBuf, er); done <- struct{}{} }()
+	go func() { _, _ = io.Copy(&outBuf, or); done <- struct{}{} }()
+	go func() { _, _ = io.Copy(&errBuf, er); done <- struct{}{} }()
 	fn()
-	ow.Close()
-	ew.Close()
+	_ = ow.Close()
+	_ = ew.Close()
 	<-done
 	<-done
 	return outBuf.String(), errBuf.String()
