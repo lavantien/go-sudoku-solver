@@ -61,6 +61,18 @@ func TestPctSkipsMalformedLine(t *testing.T) {
 	}
 }
 
+func TestPctNegativeNumStmtErrors(t *testing.T) {
+	if _, err := Pct("mode: set\nfoo.go:1.1,2.2 -3 1\n"); err == nil {
+		t.Error("negative numStmt should error")
+	}
+}
+
+func TestPctNegativeCountErrors(t *testing.T) {
+	if _, err := Pct("mode: set\nfoo.go:1.1,2.2 3 -1\n"); err == nil {
+		t.Error("negative count should error")
+	}
+}
+
 func TestBadgeLine(t *testing.T) {
 	cases := []struct {
 		pct  float64
@@ -140,4 +152,33 @@ func TestRenderPreservesContentOutsideMarkers(t *testing.T) {
 	if !strings.HasPrefix(got, "head\n") || !strings.HasSuffix(got, "\ntail\n") {
 		t.Errorf("content outside markers changed: %q", got)
 	}
+}
+
+func FuzzPct(f *testing.F) {
+	f.Add("mode: set\nfoo.go:1.1,2.2 3 1\n")
+	f.Add("mode: set\nfoo.go:1.1,2.2 x 1\n")
+	f.Add("mode: set\nfoo.go:1.1,2.2\n")
+	f.Add("")
+	f.Add("mode: set\nfoo.go:1.1,2.2 -3 1\n")
+	f.Fuzz(func(t *testing.T, profile string) {
+		pct, err := Pct(profile)
+		if err != nil {
+			return
+		}
+		if pct < 0 || pct > 100 {
+			t.Fatalf("Pct(%q) = %f, outside [0,100]", profile, pct)
+		}
+	})
+}
+
+func FuzzRender(f *testing.F) {
+	f.Add("# p\n\n<!-- coverage:START -->\nold\n<!-- coverage:END -->\n", 50.0)
+	f.Add("", 0.0)
+	f.Add(EndMarker+"\n"+StartMarker, 100.0)
+	f.Fuzz(func(t *testing.T, readme string, pct float64) {
+		got := Render(readme, pct)
+		if !strings.Contains(got, StartMarker) || !strings.Contains(got, EndMarker) {
+			t.Fatalf("Render lost a marker:\ninput:  %q\noutput: %q", readme, got)
+		}
+	})
 }
