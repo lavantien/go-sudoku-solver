@@ -1,0 +1,71 @@
+package logging
+
+import (
+	"errors"
+	"io"
+	"os"
+	"strings"
+	"testing"
+)
+
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	done := make(chan string, 1)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	fn()
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = old
+	return <-done
+}
+
+func TestDiscardByDefault(t *testing.T) {
+	for _, level := range []string{"", "discard"} {
+		out := captureStderr(t, func() {
+			l := New(level)
+			Enter(l, "unit")
+			Exit(l, "unit")
+			Fail(l, "unit", errors.New("boom"))
+		})
+		if out != "" {
+			t.Errorf("level %q: expected no output, got %q", level, out)
+		}
+	}
+}
+
+func TestEnterExitWriteAtDebug(t *testing.T) {
+	out := captureStderr(t, func() {
+		l := New("debug")
+		Enter(l, "solve", "puzzle", "sample")
+		Exit(l, "solve", "steps", 3)
+	})
+	for _, want := range []string{"phase=enter", "unit=solve", "puzzle=sample", "phase=exit", "steps=3"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in %q", want, out)
+		}
+	}
+}
+
+func TestFailWritesAtError(t *testing.T) {
+	out := captureStderr(t, func() {
+		l := New("error")
+		Enter(l, "solve")
+		Fail(l, "solve", errors.New("bad grid"))
+	})
+	if !strings.Contains(out, "phase=fail") || !strings.Contains(out, "bad grid") {
+		t.Errorf("fail line missing parts: %q", out)
+	}
+	if strings.Contains(out, "phase=enter") {
+		t.Errorf("enter leaked at error level: %q", out)
+	}
+}
