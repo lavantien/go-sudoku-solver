@@ -54,7 +54,7 @@ func withCapture(t *testing.T, stdin string, fn func()) (string, string) {
 }
 
 func TestRegistryHoldsCommands(t *testing.T) {
-	want := []string{config.CmdCoverage, config.CmdGen, config.CmdSolve, config.CmdVersion}
+	want := []string{config.CmdCoverage, config.CmdGen, config.CmdServe, config.CmdSolve, config.CmdVersion}
 	if got := Names(); !slices.Equal(got, want) {
 		t.Errorf("names: got %v want %v", got, want)
 	}
@@ -62,9 +62,6 @@ func TestRegistryHoldsCommands(t *testing.T) {
 		if _, ok := Lookup(n); !ok {
 			t.Errorf("lookup %s failed", n)
 		}
-	}
-	if _, ok := Lookup("serve"); ok {
-		t.Errorf("serve registered before its task")
 	}
 }
 

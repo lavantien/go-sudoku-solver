@@ -278,3 +278,56 @@ const (
 	DefaultProfile   = "coverage.out"
 	DefaultReadme    = "readme.md"
 )
+
+const (
+	CmdServe      = "serve"
+	UsageServe    = "serve the htmx web ui and the json api"
+	FlagAddr      = "addr"
+	FlagAddrUsage = "listen address for the web server"
+	FlagDB        = "db"
+	FlagDBUsage   = "sqlite database path"
+
+	ServeAddrLineFmt = "%s serve listening on %s\n"
+	ServeAddrPrefix  = BinName + " serve listening on "
+
+	SourceSeed = "seed"
+	SourceWeb  = "web"
+	SourceAPI  = "api"
+
+	HomePath          = "/"
+	GeneratePagePath  = "/generate"
+	HistoryPagePath   = "/history"
+	RunPageRoute      = "/runs/{id}"
+	RunPagePathFmt    = "/runs/%d"
+	StaticMountPath   = "/static/"
+	FragmentSolvePath = "/fragment/solve"
+	FragmentGenPath   = "/fragment/generate"
+
+	APIMountPath    = "/api/"
+	APISolvePath    = "/api/v1/solve"
+	APIRunsPath     = "/api/v1/runs"
+	APIRunRoute     = "/api/v1/runs/{id}"
+	APIRunsPrefix   = "/api/v1/runs/"
+	APIRunPathFmt   = "/api/v1/runs/%d"
+	APIGeneratePath = "/api/v1/generate"
+	APIPuzzlesPath  = "/api/v1/puzzles"
+	APIHealthPath   = "/api/v1/health"
+	APIVersionPath  = "/api/v1/version"
+
+	FormGrid81 = "grid81"
+
+	QueryLimit  = "limit"
+	QueryOffset = "offset"
+	QueryPage   = "page"
+
+	JSONContentType = "application/json"
+	ErrorKey        = "error"
+	HealthStatus    = "ok"
+	NameKey         = "name"
+	VersionKey      = "version"
+	DurationMSKey   = "duration_ms"
+
+	HistoryPageSize = 20
+	APIPageLimit    = 20
+	APIPageLimitMax = 100
+)
