@@ -1,0 +1,92 @@
+package solver
+
+import (
+	"context"
+	"testing"
+
+	"github.com/lavantien/go-sudoku-solver/internal/config"
+	"github.com/lavantien/go-sudoku-solver/internal/puzzle"
+	"github.com/lavantien/go-sudoku-solver/internal/sudoku"
+)
+
+func TestAnnealSolvesSampleWithDefaultSeed(t *testing.T) {
+	got := Anneal(context.Background(), sampleGrid(t), config.Defaults())
+	if !got.Solved {
+		t.Fatalf("default seed does not solve the sample")
+	}
+	want := solutionGrid(t)
+	if got.Grid != want {
+		t.Errorf("grid: got %s want %s", sudoku.Serialize(got.Grid), sudoku.Serialize(want))
+	}
+	if got.Steps <= 0 {
+		t.Errorf("steps: got %d", got.Steps)
+	}
+}
+
+func TestAnnealDeterministic(t *testing.T) {
+	a := Anneal(context.Background(), sampleGrid(t), config.Defaults())
+	b := Anneal(context.Background(), sampleGrid(t), config.Defaults())
+	if a.Grid != b.Grid || a.Steps != b.Steps || a.Solved != b.Solved {
+		t.Errorf("two runs differ: steps %d vs %d, solved %v vs %v", a.Steps, b.Steps, a.Solved, b.Solved)
+	}
+}
+
+func TestAnnealUnsolvableKeepsRowPermutations(t *testing.T) {
+	in := unsolvableGrid(t)
+	got := Anneal(context.Background(), in, config.Defaults())
+	if got.Solved {
+		t.Fatalf("unsolvable reported solved")
+	}
+	if !puzzle.GivensPreserved(got.Grid, in) {
+		t.Errorf("givens not preserved: %s", sudoku.Serialize(got.Grid))
+	}
+	for u := range 9 {
+		mask := sudoku.RowUsed(got.Grid, u)
+		if mask != sudoku.AllDigits {
+			t.Errorf("row %d lost a digit: %04x", u, mask)
+		}
+	}
+}
+
+func TestAnnealCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	got := Anneal(ctx, sampleGrid(t), config.Defaults())
+	if got.Solved {
+		t.Errorf("cancelled context reported solved")
+	}
+}
+
+func TestAnnealBudgetExhaustion(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.Anneal.Restarts = 1
+	cfg.Anneal.Iterations = 50
+	got := Anneal(context.Background(), sampleGrid(t), cfg)
+	if got.Solved {
+		t.Errorf("tiny budget solved the sample, budget semantics broken")
+	}
+	if got.Steps > 50 {
+		t.Errorf("steps exceed budget: %d", got.Steps)
+	}
+}
+
+func TestAnnealSolvesEmptyGrid(t *testing.T) {
+	g := sudoku.Grid{}
+	got := Anneal(context.Background(), g, config.Defaults())
+	if !got.Solved {
+		t.Fatalf("empty grid not solved by the portfolio")
+	}
+	if !puzzle.ValidSolution(got.Grid) {
+		t.Errorf("invalid solution")
+	}
+}
+
+func TestRegistryHasAnneal(t *testing.T) {
+	all := All()
+	if len(all) < 3 {
+		t.Fatalf("registry has %d methods", len(all))
+	}
+	if all[2].ID != "anneal" || all[2].Label != config.LabelAnneal {
+		t.Errorf("third method: got %s %s", all[2].ID, all[2].Label)
+	}
+}
