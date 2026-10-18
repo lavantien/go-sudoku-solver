@@ -21,6 +21,7 @@ const (
 	ErrNotEnoughLines = "not enough lines in input"
 	ErrLineLengthFmt  = "invalid line length: %d, expected 9"
 	ErrCharFmt        = "invalid character: %c"
+	ErrGridLengthFmt  = "invalid grid length: %d, expected 81"
 	InputErrorPrefix  = "Error reading input:"
 	LabelPropagate    = "Constraint propagation with MRV backtracking"
 	LabelCover        = "Exact cover over the boolean incidence matrix"

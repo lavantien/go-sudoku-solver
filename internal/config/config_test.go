@@ -19,6 +19,7 @@ func TestContractConstants(t *testing.T) {
 		{"not enough lines", ErrNotEnoughLines, "not enough lines in input"},
 		{"line length", ErrLineLengthFmt, "invalid line length: %d, expected 9"},
 		{"bad character", ErrCharFmt, "invalid character: %c"},
+		{"grid length", ErrGridLengthFmt, "invalid grid length: %d, expected 81"},
 		{"input error prefix", InputErrorPrefix, "Error reading input:"},
 		{"grid unit row", GridUnitRow, "___ ___ ___"},
 		{"label propagate", LabelPropagate, "Constraint propagation with MRV backtracking"},
