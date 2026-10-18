@@ -35,7 +35,7 @@ func tableNames(t *testing.T, s *Store) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var names []string
 	for rows.Next() {
 		var name string
@@ -56,7 +56,7 @@ func columnNames(t *testing.T, s *Store, table string) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var cols []string
 	for rows.Next() {
 		var cid int
