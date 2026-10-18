@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -57,6 +59,45 @@ func TestScreenshotRejectsUnexpectedArg(t *testing.T) {
 func TestScreenshotRejectsUnknownFlag(t *testing.T) {
 	if err := runScreenshot(context.Background(), config.Defaults(), []string{"-nope"}); err == nil {
 		t.Error("screenshot must reject unknown flags")
+	}
+}
+
+func TestScreenshotRejectsBrowserEnvDirectory(t *testing.T) {
+	t.Setenv(config.BrowserEnv, t.TempDir())
+	if err := runScreenshot(context.Background(), config.Defaults(), nil); err == nil {
+		t.Error("browser env pointing at a directory must fail")
+	}
+}
+
+func TestScreenshotRejectsUnusableOutDir(t *testing.T) {
+	t.Setenv(config.BrowserEnv, os.Args[0])
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := runScreenshot(context.Background(), config.Defaults(), []string{"--" + config.FlagOut, filepath.Join(blocker, "shots")}); err == nil {
+		t.Error("out dir under a plain file must fail")
+	}
+}
+
+func TestPostSolveReportsTransportStatusAndIndentErrors(t *testing.T) {
+	if _, err := postSolve("http://127.0.0.1:1"); err == nil {
+		t.Error("dead base url: got nil want error")
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("boom"))
+	}))
+	t.Cleanup(ts.Close)
+	if _, err := postSolve(ts.URL); err == nil {
+		t.Error("non-200 api solve: got nil want error")
+	}
+	ts2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("not json"))
+	}))
+	t.Cleanup(ts2.Close)
+	if _, err := postSolve(ts2.URL); err == nil {
+		t.Error("malformed api solve body: got nil want error")
 	}
 }
 

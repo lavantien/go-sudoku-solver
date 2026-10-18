@@ -134,6 +134,32 @@ func TestRunCoverageFlagsDriveTheRun(t *testing.T) {
 	}
 }
 
+func TestRunCoverageMissingProfileFailsTheCommand(t *testing.T) {
+	if err := runCoverage(context.Background(), config.Defaults(),
+		[]string{"-profile", filepath.Join(t.TempDir(), "nope.out"), "-readme", "readme.md"}); err == nil {
+		t.Error("missing profile must fail the command")
+	}
+}
+
+func TestRunCoverageUnwritableReadmeErrors(t *testing.T) {
+	dir := t.TempDir()
+	profilePath := filepath.Join(dir, "coverage.out")
+	readmePath := filepath.Join(dir, "readme.md")
+	if err := os.WriteFile(profilePath, []byte("mode: set\nfoo.go:1.1,2.2 4 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(readmePath, []byte("readme\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(readmePath, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(readmePath, 0o644) })
+	if _, err := coverageRun(profilePath, readmePath); err == nil {
+		t.Error("unwritable readme: got nil want error")
+	}
+}
+
 func TestRunCoverageRegisteredInRegistry(t *testing.T) {
 	c, ok := Lookup(config.CmdCoverage)
 	if !ok {

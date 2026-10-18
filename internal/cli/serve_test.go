@@ -116,6 +116,19 @@ func TestServeRejectsBadFlagsAndBadAddr(t *testing.T) {
 	}
 }
 
+func TestServeRejectsEmptyAddrAndUnusableDB(t *testing.T) {
+	if err := runServe(context.Background(), config.Defaults(), []string{"--" + config.FlagAddr, "", "--" + config.FlagDB, filepath.Join(t.TempDir(), "x.db")}); err == nil {
+		t.Error("empty addr: got nil want error")
+	}
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := runServe(context.Background(), config.Defaults(), []string{"--" + config.FlagAddr, "127.0.0.1:0", "--" + config.FlagDB, filepath.Join(blocker, "x.db")}); err == nil {
+		t.Error("db under a plain file: got nil want error")
+	}
+}
+
 func TestServeAddrLineFmtMatchesPrefix(t *testing.T) {
 	line := fmt.Sprintf(config.ServeAddrLineFmt, config.BinName, "127.0.0.1:1")
 	if !strings.HasPrefix(line, config.ServeAddrPrefix) {

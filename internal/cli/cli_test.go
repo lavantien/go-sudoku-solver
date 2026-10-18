@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/lavantien/go-sudoku-solver/internal/config"
+	"github.com/lavantien/go-sudoku-solver/internal/puzzle"
 	"github.com/lavantien/go-sudoku-solver/internal/solver"
 	"github.com/lavantien/go-sudoku-solver/internal/sudoku"
 )
@@ -128,6 +129,48 @@ func TestMainSolveExplicitMatchesBare(t *testing.T) {
 	want := fmt.Sprintf("%s %s\n", config.InputErrorPrefix, config.ErrNotEnoughLines)
 	if stderr != want {
 		t.Errorf("stderr: got %q want %q", stderr, want)
+	}
+}
+
+func TestMainSolvePrintsFullReport(t *testing.T) {
+	var in strings.Builder
+	for r := range config.Size {
+		in.WriteString(puzzle.Sample81[r*config.Size : (r+1)*config.Size])
+		in.WriteString("\n")
+	}
+	stdout, stderr := withCapture(t, in.String(), func() {
+		if code := Main([]string{config.CmdSolve}); code != 0 {
+			t.Errorf("exit code: got %d want 0", code)
+		}
+	})
+	if stderr != "" {
+		t.Errorf("stderr: got %q want empty", stderr)
+	}
+	if !strings.HasPrefix(stdout, config.InitialHeader+"\n") {
+		t.Errorf("report lacks the initial header: %q", stdout[:min(80, len(stdout))])
+	}
+	for _, label := range []string{config.LabelPropagate, config.LabelCover, config.LabelAnneal, config.LabelRace} {
+		if !strings.Contains(stdout, label) {
+			t.Errorf("report lacks method label %q", label)
+		}
+	}
+	if got := strings.Count(stdout, config.Separator); got != 2*len(config.MethodIDs) {
+		t.Errorf("separator count: got %d want %d", got, 2*len(config.MethodIDs))
+	}
+	if got := strings.Count(stdout, "Step count: "); got != len(config.MethodIDs) {
+		t.Errorf("step lines: got %d want %d", got, len(config.MethodIDs))
+	}
+}
+
+func TestMainGenRejectsUnknownFlag(t *testing.T) {
+	args := []string{config.CmdGen, "-nope"}
+	stdout, _ := withCapture(t, "", func() {
+		if code := Main(args); code != 1 {
+			t.Errorf("exit code: got %d want 1", code)
+		}
+	})
+	if stdout != "" {
+		t.Errorf("stdout: got %q want empty", stdout)
 	}
 }
 
