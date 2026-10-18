@@ -48,8 +48,8 @@ func TestPropagateSolvesSampleToReferenceSolution(t *testing.T) {
 	if got.Grid != want {
 		t.Errorf("grid: got %s want %s", sudoku.Serialize(got.Grid), sudoku.Serialize(want))
 	}
-	if got.Steps < 64 {
-		t.Errorf("steps: got %d want at least the 64 empties", got.Steps)
+	if got.Steps != 64 {
+		t.Errorf("steps: got %d want exactly the 64 singles fills", got.Steps)
 	}
 }
 
@@ -125,8 +125,8 @@ func TestPropagationFill(t *testing.T) {
 		t.Errorf("full grid fill: got %d want 0", got)
 	}
 	got := PropagationFill(sampleGrid(t))
-	if got < 0 || got > 64 {
-		t.Errorf("sample fill out of range: %d", got)
+	if got != 64 {
+		t.Errorf("sample fill: got %d want exactly the 64 singles fills", got)
 	}
 }
 

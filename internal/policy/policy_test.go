@@ -17,68 +17,10 @@ func sampleForFeatures(t *testing.T) sudoku.Grid {
 	return g
 }
 
-func oracleFill(g sudoku.Grid) int {
-	work := g
-	total := 0
-	for {
-		progress := false
-		for i := range work {
-			if work[i] != 0 {
-				continue
-			}
-			m := ^(sudoku.RowUsed(work, sudoku.CellRow(i)) | sudoku.ColUsed(work, sudoku.CellCol(i)) | sudoku.BoxUsed(work, sudoku.CellBox(i))) & sudoku.AllDigits
-			if m == 0 {
-				return total
-			}
-			if sudoku.Popcount(m) == 1 {
-				work[i] = uint8(sudoku.FirstSetDigit(m))
-				total++
-				progress = true
-			}
-		}
-		for u := range 27 {
-			unit := sudoku.UnitCells(u)
-			for d := 1; d <= 9; d++ {
-				bit := uint16(1) << (d - 1)
-				placed := false
-				count := 0
-				at := -1
-				for _, i := range unit {
-					if work[i] != 0 {
-						if work[i] == uint8(d) {
-							placed = true
-						}
-						continue
-					}
-					cand := ^(sudoku.RowUsed(work, sudoku.CellRow(i)) | sudoku.ColUsed(work, sudoku.CellCol(i)) | sudoku.BoxUsed(work, sudoku.CellBox(i))) & sudoku.AllDigits
-					if cand&bit != 0 {
-						count++
-						at = i
-					}
-				}
-				if placed {
-					continue
-				}
-				if count == 0 {
-					return total
-				}
-				if count == 1 {
-					work[at] = uint8(d)
-					total++
-					progress = true
-				}
-			}
-		}
-		if !progress {
-			return total
-		}
-	}
-}
-
 func TestFeaturesPinSample(t *testing.T) {
 	g := sampleForFeatures(t)
 	got := Features(g)
-	want := []float64{17, float64(oracleFill(g)), 0, 4, 51.0 / 27.0}
+	want := []float64{17, 64, 0, 4, 51.0 / 27.0}
 	if len(got) != len(want) {
 		t.Fatalf("feature count: got %d want %d", len(got), len(want))
 	}
