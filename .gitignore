@@ -1,0 +1,20 @@
+# SQLite database (created on serve, seeded on first serve)
+database/
+
+# Go build / test artifacts
+*.exe
+*.test
+*.out
+dist/
+.tools/
+
+# Vendored plantuml jar and scratch
+.superpowers/
+.claude/
+playground/
+
+# Browser automation scratch
+*.png
+# ...but committed diagram and journey pictures stay tracked.
+!docs/diagrams/*.png
+!project-pictures/*.png

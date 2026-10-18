@@ -1,0 +1,10 @@
+# Project lint bar: the golangci-lint default set (errcheck, govet,
+# staticcheck, unused, ineffassign), matching what the global pre-commit
+# hook enforces with --no-config. Personal dotfile configs are ignored by
+# design so every machine sees the same gate.
+version: "2"
+
+linters:
+  exclusions:
+    paths:
+      - playground
