@@ -51,20 +51,26 @@ func TestRaceSynctestFirstFinisherWins(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		fast := func(ctx context.Context, g sudoku.Grid, c config.Config) Result {
 			time.Sleep(10 * time.Millisecond)
-			return Result{Grid: g, Steps: 5, Solved: true}
+			out := g
+			out[0] = 1
+			return Result{Grid: out, Steps: 5, Solved: true}
 		}
 		mid := func(ctx context.Context, g sudoku.Grid, c config.Config) Result {
 			time.Sleep(30 * time.Millisecond)
-			return Result{Grid: g, Steps: 7, Solved: true}
+			out := g
+			out[0] = 2
+			return Result{Grid: out, Steps: 7, Solved: true}
 		}
 		slow := func(ctx context.Context, g sudoku.Grid, c config.Config) Result {
 			time.Sleep(50 * time.Millisecond)
-			return Result{Grid: g, Steps: 9, Solved: false}
+			out := g
+			out[0] = 3
+			return Result{Grid: out, Steps: 9, Solved: false}
 		}
 		start := time.Now()
 		got := Race(context.Background(), sudoku.Grid{}, config.Defaults(), fast, mid, slow)
-		if !got.Solved || got.Steps != 5 {
-			t.Errorf("winner: got solved %v steps %d want the 10ms racer", got.Solved, got.Steps)
+		if !got.Solved || got.Grid[0] != 1 {
+			t.Errorf("winner: got solved %v grid0 %d want the 10ms racer", got.Solved, got.Grid[0])
 		}
 		if got.Steps != 21 {
 			t.Errorf("total steps: got %d want 21 summed across racers", got.Steps)

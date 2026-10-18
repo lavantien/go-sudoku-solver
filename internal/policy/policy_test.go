@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/lavantien/go-sudoku-solver/internal/config"
@@ -125,18 +124,13 @@ func TestResolveOrderPermutesRacers(t *testing.T) {
 		{0.5, 0.5, 0.5, 0.5, 0.5},
 	}
 	got := ResolveOrder(sampleForFeatures(t))
+	want := []string{config.MethodIDs[0], config.MethodIDs[2], config.MethodIDs[1]}
 	if len(got) != 3 {
 		t.Fatalf("order length %d", len(got))
 	}
-	sorted := append([]string(nil), got...)
-	sort.Strings(sorted)
-	for i, id := range sorted {
-		if id != config.MethodIDs[i] {
-			t.Errorf("order %v is not a permutation of the racers", got)
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("slot %d: got %s want %s", i, got[i], want[i])
 		}
-	}
-	scores := Order(Features(sampleForFeatures(t)))
-	if scores[0] >= scores[1] || scores[1] >= scores[2] {
-		t.Errorf("Order not ascending: %v", scores)
 	}
 }

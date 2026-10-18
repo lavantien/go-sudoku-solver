@@ -28,6 +28,9 @@ func All() []Method {
 		{ID: config.MethodIDs[0], Label: config.LabelPropagate, Fn: Propagate},
 		{ID: config.MethodIDs[1], Label: config.LabelCover, Fn: Cover},
 		{ID: config.MethodIDs[2], Label: config.LabelAnneal, Fn: Anneal},
+		{ID: config.MethodIDs[3], Label: config.LabelRace, Fn: func(ctx context.Context, g sudoku.Grid, c config.Config) Result {
+			return Race(ctx, g, c)
+		}},
 	}
 }
 
