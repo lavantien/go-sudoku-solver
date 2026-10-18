@@ -38,12 +38,16 @@ func TestMainDelegatesToTheCli(t *testing.T) {
 			var out bytes.Buffer
 			cmd.Stdout = &out
 			err := cmd.Run()
-			var exitErr *exec.ExitError
-			if !errors.As(err, &exitErr) {
-				t.Fatalf("run %v: %v", tc.args, err)
+			code := 0
+			if err != nil {
+				var exitErr *exec.ExitError
+				if !errors.As(err, &exitErr) {
+					t.Fatalf("run %v: %v", tc.args, err)
+				}
+				code = exitErr.ExitCode()
 			}
-			if exitErr.ExitCode() != tc.wantCode {
-				t.Errorf("exit code: got %d want %d", exitErr.ExitCode(), tc.wantCode)
+			if code != tc.wantCode {
+				t.Errorf("exit code: got %d want %d", code, tc.wantCode)
 			}
 			if out.String() != tc.wantOut {
 				t.Errorf("stdout: got %q want %q", out.String(), tc.wantOut)
