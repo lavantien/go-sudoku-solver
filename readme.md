@@ -286,7 +286,7 @@ release-upload publish the v1.0 GitHub release with the cross-compiled binaries
 
 ## QA harness
 
-Every change runs the verification chain through make, committing at each green step. The gates in order: `make test`, `make race`, `make fmt`, `make lint`, `make typecheck`, `make sloc`, `make fuzz`, `make mutate`, `make memtest`, `make e2e`. `make verify` chains the whole sequence fail-fast. Pinned fixtures, per-method step semantics, the race contract, and the golden normalization rules are recorded in [docs/qa/baselines.md](docs/qa/baselines.md), with the tuning and evolution ledgers under [docs/qa/notes](docs/qa/notes/anneal-tuning.md).
+Every change runs the verification chain through make, committing at each green step. The gates in order: `make test`, `make race`, `make fmt`, `make lint`, `make typecheck`, `make sloc`, `make fuzz`, `make mutate`, `make memtest`, `make e2e`. `make verify` chains the whole sequence fail-fast. Global statement coverage holds at 95% or above over every package with no exclusions, checked by `make coverage`, with 100% the target. Pinned fixtures, per-method step semantics, the race contract, and the golden normalization rules are recorded in [docs/qa/baselines.md](docs/qa/baselines.md), with the tuning and evolution ledgers under [docs/qa/notes](docs/qa/notes/anneal-tuning.md).
 
 ## Build logs
 
