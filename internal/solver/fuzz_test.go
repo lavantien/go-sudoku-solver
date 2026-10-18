@@ -41,7 +41,7 @@ func FuzzSolverCore(f *testing.F) {
 	fuzzGridBytes(f, puzzle.Sample81)
 	fuzzGridBytes(f, puzzle.Unsolvable81)
 	fuzzGridBytes(f, puzzle.Anneal81)
-	f.Add(make([]byte, config.Cells))
+	fuzzGridBytes(f, puzzle.SampleSolution81)
 	f.Add([]byte{})
 	f.Fuzz(func(t *testing.T, data []byte) {
 		var g sudoku.Grid
