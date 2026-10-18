@@ -1,6 +1,6 @@
 # qa baselines
 
-Pinned fixtures, step semantics, constants, and golden rules the test suite relies on. Every claim here is checked by a test named alongside it, so drift fails the build rather than the docs.
+Pinned fixtures, step semantics, constants, and golden rules the test suite relies on. Every claim here is checked by a test named alongside it, so drift fails the build first.
 
 ## fixture origins
 
@@ -37,4 +37,4 @@ The e2e report tests in `internal/app/run_test.go` compare against goldens under
 - `Step count: [0-9]+` rewrites to `Step count: 0`.
 - `Execution time: [0-9]+\.[0-9]+` rewrites to `Execution time: 0.000000`.
 
-The full-report golden runs on `Anneal81`, where all four methods deterministically reach the identical solution render. The classic-sample exact-blocks test pins the header and every method's render to `SampleSolution81` for propagate, cover, and race, and deliberately skips the render assertion for the anneal block only, because anneal deterministically reports the 17-clue sample unsolved with its best-effort grid. The skipped assertion is a recorded contract, not a hole, see the anneal tuning note for the landscape analysis behind it.
+The full-report golden runs on `Anneal81`, where all four methods deterministically reach the identical solution render. The classic-sample exact-blocks test pins the header and every method's render to `SampleSolution81` for propagate, cover, and race, and deliberately skips the render assertion for the anneal block only, because anneal deterministically reports the 17-clue sample unsolved with its best-effort grid. The skipped assertion is a recorded contract, see the anneal tuning note for the analysis behind it.

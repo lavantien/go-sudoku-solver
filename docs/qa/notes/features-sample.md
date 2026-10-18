@@ -30,7 +30,7 @@ Rows, with placed digits:
 
 | unit | clues | digits |
 |---|---|---|
-| row 1 | 1 | 8 |
+| row 1 | 1 | 1 |
 | row 2 | 1 | 4 |
 | row 3 | 1 | 2 |
 | row 4 | 3 | 5 4 7 |
