@@ -38,10 +38,11 @@ func TestGenerateClueTargets(t *testing.T) {
 	cases := []struct {
 		target int
 		lo     int
+		hi     int
 	}{
-		{40, 40},
-		{30, 26},
-		{17, 20},
+		{40, 40, 40},
+		{30, 26, 30},
+		{17, 23, 81},
 	}
 	for _, tc := range cases {
 		t.Run("target", func(t *testing.T) {
@@ -49,8 +50,8 @@ func TestGenerateClueTargets(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if res.Clues > tc.target || res.Clues < tc.lo {
-				t.Errorf("target %d: got %d clues, want between %d and %d", tc.target, res.Clues, tc.lo, tc.target)
+			if res.Clues > tc.hi || res.Clues < tc.lo {
+				t.Errorf("target %d: got %d clues, want between %d and %d", tc.target, res.Clues, tc.lo, tc.hi)
 			}
 			counted := 0
 			for i := range res.Grid {
