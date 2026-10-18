@@ -18,6 +18,16 @@ const sampleInput = ".......1.\n" +
 	".5.1.....\n" +
 	"...8.6...\n"
 
+const sampleCrLf = ".......1.\r\n" +
+	"4........\r\n" +
+	".2.......\r\n" +
+	"....5.4.7\r\n" +
+	"..8...3..\r\n" +
+	"..1.9....\r\n" +
+	"3..4..2..\r\n" +
+	".5.1.....\r\n" +
+	"...8.6...\r\n"
+
 const sample81 = ".......1." +
 	"4........" +
 	".2......." +
@@ -65,17 +75,25 @@ func TestParseInputErrors(t *testing.T) {
 		{"eight lines", "1........\n2........\n3........\n4........\n5........\n6........\n7........\n8........\n", config.ErrNotEnoughLines},
 		{"short line", "12345678\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrLineLengthFmt, 8)},
 		{"long line", "1234567890\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrLineLengthFmt, 10)},
-		{"crlf line", "12345678\r\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrCharFmt, '\r')},
+		{"crlf line", "12345678\r\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrLineLengthFmt, 8)},
+		{"crlf valid lines parse", sampleCrLf, ""},
+		{"midline carriage return", "1234\r6789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrCharFmt, '\r')},
 		{"zero digit", "0........\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrCharFmt, '0')},
 		{"letter", "a........\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrCharFmt, 'a')},
 		{"pipe", "|........\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrCharFmt, '|')},
-		{"fullwidth digit", "１２３456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrCharFmt, '１')},
-		{"invalid utf8", "\xc3.......\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrCharFmt, '�')},
+		{"fullwidth digit", "１２３\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrCharFmt, '１')},
+		{"invalid utf8", "\xc3........\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n", fmt.Sprintf(config.ErrCharFmt, '�')},
 		{"huge line", strings.Repeat("x", 70*1024) + "\n" + sampleInput, config.ErrNotEnoughLines},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := ParseInput(strings.NewReader(tc.in))
+			if tc.want == "" {
+				if err != nil {
+					t.Fatalf("expected success, got %v", err)
+				}
+				return
+			}
 			if err == nil {
 				t.Fatalf("expected error %q", tc.want)
 			}
