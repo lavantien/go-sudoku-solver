@@ -49,7 +49,7 @@ func TestEnterExitWriteAtDebug(t *testing.T) {
 		Enter(l, "solve", "puzzle", "sample")
 		Exit(l, "solve", "steps", 3)
 	})
-	for _, want := range []string{"phase=enter", "unit=solve", "puzzle=sample", "phase=exit", "steps=3"} {
+	for _, want := range []string{"phase=enter", "msg=solve", "puzzle=sample", "phase=exit", "steps=3"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in %q", want, out)
 		}

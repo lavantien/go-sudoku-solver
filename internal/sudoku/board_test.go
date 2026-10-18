@@ -8,7 +8,7 @@ func gridFromString(t *testing.T, s string) Grid {
 		t.Fatalf("fixture length %d", len(s))
 	}
 	var g Grid
-	for i := 0; i < 81; i++ {
+	for i := range 81 {
 		if s[i] == '.' {
 			g[i] = 0
 		} else {
