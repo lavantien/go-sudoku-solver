@@ -9,6 +9,7 @@ import (
 
 func FuzzParseInput(f *testing.F) {
 	f.Add([]byte(sampleInput))
+	f.Add([]byte(sampleCrLf))
 	f.Add([]byte(sampleInput + "junk\n"))
 	f.Add([]byte("12345678\r\n123456789\n"))
 	f.Add([]byte("１２３456789\n"))
@@ -38,13 +39,14 @@ func firstNineLines(s string) string {
 	if len(lines) < 9 {
 		return ""
 	}
-	joined := lines[0] + lines[1] + lines[2] + lines[3] + lines[4] + lines[5] + lines[6] + lines[7] + lines[8]
 	var b strings.Builder
-	for _, ch := range joined {
-		if (ch < '1' || ch > '9') && ch != '.' {
-			return ""
+	for i := range 9 {
+		for _, ch := range strings.TrimSuffix(lines[i], "\r") {
+			if (ch < '1' || ch > '9') && ch != '.' {
+				return ""
+			}
+			b.WriteRune(ch)
 		}
-		b.WriteRune(ch)
 	}
 	return b.String()
 }
