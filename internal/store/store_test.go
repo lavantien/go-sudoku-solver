@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -263,6 +264,145 @@ func TestCloseIdempotent(t *testing.T) {
 	}
 	if err := s.Close(); err != nil {
 		t.Fatalf("second close: %v", err)
+	}
+}
+
+func TestOpenRejectsUnusablePaths(t *testing.T) {
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(filepath.Join(blocker, "sudoku.db")); err == nil {
+		t.Error("db path under a plain file: want error")
+	}
+	if _, err := Open(t.TempDir()); err == nil {
+		t.Error("directory as db path: want error")
+	}
+	junk := filepath.Join(t.TempDir(), "junk.db")
+	if err := os.WriteFile(junk, []byte("this is not sqlite"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(junk); err == nil {
+		t.Error("non-database file as db path: want error")
+	}
+}
+
+func TestInsertRunFailsWhenSchemaIsDamaged(t *testing.T) {
+	noRuns := openTemp(t)
+	if _, err := noRuns.db.Exec("DROP TABLE runs"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := noRuns.InsertRun(grid81(0), "api", nil); err == nil {
+		t.Error("insert without the runs table: want error")
+	}
+
+	noMethods := openTemp(t)
+	if _, err := noMethods.db.Exec("DROP TABLE run_methods"); err != nil {
+		t.Fatal(err)
+	}
+	methods := []MethodRow{{Method: "propagate", Grid81: grid81(1), Steps: 1, TimeNS: 1, Solved: true}}
+	if _, err := noMethods.InsertRun(grid81(0), "api", methods); err == nil {
+		t.Error("insert without the run_methods table: want error")
+	}
+
+	closed := openTemp(t)
+	if err := closed.db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := closed.InsertRun(grid81(0), "api", nil); err == nil {
+		t.Error("insert on a closed database: want error")
+	}
+}
+
+func TestReadsFailWhenSchemaIsDamaged(t *testing.T) {
+	s := openTemp(t)
+	if _, err := s.db.Exec("DROP TABLE runs"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ListRuns(10, 0); err == nil {
+		t.Error("list runs without the runs table: want error")
+	}
+	if _, err := s.GetRun(1); err == nil || errors.Is(err, ErrNotFound) {
+		t.Errorf("get run without the runs table: got %v, want a non-notfound error", err)
+	}
+	if _, err := s.CountRuns(); err == nil {
+		t.Error("count runs without the runs table: want error")
+	}
+
+	p := openTemp(t)
+	if _, err := p.db.Exec("DROP TABLE puzzles"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.InsertPuzzle(grid81(0), 30, 1); err == nil {
+		t.Error("insert puzzle without the puzzles table: want error")
+	}
+	if _, err := p.ListPuzzles(10, 0); err == nil {
+		t.Error("list puzzles without the puzzles table: want error")
+	}
+}
+
+func TestGetRunFailsWhenMethodTableIsDamaged(t *testing.T) {
+	s := openTemp(t)
+	if _, err := s.InsertRun(grid81(0), "api", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec("DROP TABLE run_methods"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GetRun(1); err == nil {
+		t.Error("get run without the run_methods table: want error")
+	}
+}
+
+func TestScansFailOnNullColumns(t *testing.T) {
+	s := openTemp(t)
+	for _, stmt := range []string{
+		"DROP TABLE runs",
+		"CREATE TABLE runs(id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT, input81 TEXT, source TEXT)",
+	} {
+		if _, err := s.db.Exec(stmt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.db.Exec("INSERT INTO runs (created_at, input81, source) VALUES (NULL, 'x', 'y')"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ListRuns(10, 0); err == nil {
+		t.Error("null created_at must fail the summary scan")
+	}
+	if _, err := s.GetRun(1); err == nil {
+		t.Error("null created_at must fail the detail scan")
+	}
+
+	m := openTemp(t)
+	if _, err := m.InsertRun(grid81(0), "api", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range []string{
+		"DROP TABLE run_methods",
+		"CREATE TABLE run_methods(run_id INTEGER, method TEXT, grid81 TEXT, steps INTEGER, time_ns INTEGER, solved INTEGER)",
+		"INSERT INTO run_methods (run_id, method, grid81, steps, time_ns, solved) VALUES (1, NULL, 'x', 1, 1, 0)",
+	} {
+		if _, err := m.db.Exec(stmt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := m.GetRun(1); err == nil {
+		t.Error("null method must fail the method scan")
+	}
+
+	p := openTemp(t)
+	for _, stmt := range []string{
+		"DROP TABLE puzzles",
+		"CREATE TABLE puzzles(id INTEGER PRIMARY KEY AUTOINCREMENT, grid81 TEXT, clues INTEGER, seed INTEGER, created_at TEXT)",
+		"INSERT INTO puzzles (grid81, clues, seed, created_at) VALUES (NULL, 30, 1, '2026-01-01T00:00:00Z')",
+	} {
+		if _, err := p.db.Exec(stmt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := p.ListPuzzles(10, 0); err == nil {
+		t.Error("null grid81 must fail the puzzle scan")
 	}
 }
 
