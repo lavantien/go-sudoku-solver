@@ -103,6 +103,9 @@ func TestFixedOrder(t *testing.T) {
 }
 
 func TestResolveOrderFallsBackWithoutTable(t *testing.T) {
+	saved := TableWeights
+	defer func() { TableWeights = saved }()
+	TableWeights = nil
 	got := ResolveOrder(sampleForFeatures(t))
 	want := FixedOrder()
 	if len(got) != len(want) {
