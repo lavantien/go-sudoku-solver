@@ -1,0 +1,5 @@
+# fixture origins
+
+sample.golden: initial and solution grids transcribed from the legacy readme output example, block format transcribed from the legacy main.go print statements, labels and step or time line formats taken from internal/config constants. step and time digits are normalized placeholders. the anneal block is a placeholder because the classic sample leaves anneal unsolved at its deterministic best effort, which no contract pins byte for byte. read 2026-10-19.
+
+unsolvable.golden: same transcription sources as sample.golden. the propagate and cover blocks carry the input grid unchanged, pinned by internal/solver tests on the unsolvable fixture. the race block carries the input grid because the cover givens-conflict short-circuit completes without a search orders of magnitude before the propagate search and the anneal budget, so the first-finish race winner is always propagate or cover, both pinned to return the input grid. the anneal block is a placeholder for its banked best effort. written 2026-10-19.
