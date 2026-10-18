@@ -43,6 +43,25 @@ func TestFixturesPinLegacyReadmeSample(t *testing.T) {
 	}
 }
 
+func TestAnnealFixtureDerivesFromSolution(t *testing.T) {
+	if len(Anneal81) != 81 {
+		t.Fatalf("fixture length %d", len(Anneal81))
+	}
+	clues := 0
+	for i := range Anneal81 {
+		if Anneal81[i] == '.' {
+			continue
+		}
+		clues++
+		if Anneal81[i] != SampleSolution81[i] {
+			t.Errorf("cell %d: fixture %c differs from solution %c", i, Anneal81[i], SampleSolution81[i])
+		}
+	}
+	if clues != 40 {
+		t.Errorf("clue count: got %d want 40", clues)
+	}
+}
+
 func TestValidSolution(t *testing.T) {
 	solved, err := sudoku.Parse81(SampleSolution81)
 	if err != nil {

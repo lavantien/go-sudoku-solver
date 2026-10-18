@@ -83,8 +83,8 @@ func Defaults() Config {
 			Restarts:   4,
 			Iterations: 150000,
 			Seed:       1,
-			TempStart:  3000,
-			TempEnd:    10,
+			TempStart:  4000,
+			TempEnd:    100,
 		},
 		Gen: GenConfig{Clues: 30, Seed: 1},
 		Server: ServerConfig{

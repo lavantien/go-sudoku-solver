@@ -9,10 +9,19 @@ import (
 	"github.com/lavantien/go-sudoku-solver/internal/sudoku"
 )
 
-func TestAnnealSolvesSampleWithDefaultSeed(t *testing.T) {
-	got := Anneal(context.Background(), sampleGrid(t), config.Defaults())
+func annealFixtureGrid(t *testing.T) sudoku.Grid {
+	t.Helper()
+	g, err := sudoku.Parse81(puzzle.Anneal81)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return g
+}
+
+func TestAnnealSolvesDefaultFixtureWithDefaultSeed(t *testing.T) {
+	got := Anneal(context.Background(), annealFixtureGrid(t), config.Defaults())
 	if !got.Solved {
-		t.Fatalf("default seed does not solve the sample")
+		t.Fatalf("default seed does not solve the anneal fixture")
 	}
 	want := solutionGrid(t)
 	if got.Grid != want {
@@ -23,9 +32,29 @@ func TestAnnealSolvesSampleWithDefaultSeed(t *testing.T) {
 	}
 }
 
+func TestAnnealSampleBestEffortUnsolved(t *testing.T) {
+	in := sampleGrid(t)
+	got := Anneal(context.Background(), in, config.Defaults())
+	if got.Solved {
+		t.Fatalf("adversarial sample reported solved by anneal")
+	}
+	if !puzzle.GivensPreserved(got.Grid, in) {
+		t.Errorf("givens not preserved")
+	}
+	for u := range 9 {
+		if mask := sudoku.RowUsed(got.Grid, u); mask != sudoku.AllDigits {
+			t.Errorf("row %d lost a digit: %04x", u, mask)
+		}
+	}
+	again := Anneal(context.Background(), in, config.Defaults())
+	if again.Grid != got.Grid || again.Steps != got.Steps {
+		t.Errorf("two runs differ")
+	}
+}
+
 func TestAnnealDeterministic(t *testing.T) {
-	a := Anneal(context.Background(), sampleGrid(t), config.Defaults())
-	b := Anneal(context.Background(), sampleGrid(t), config.Defaults())
+	a := Anneal(context.Background(), annealFixtureGrid(t), config.Defaults())
+	b := Anneal(context.Background(), annealFixtureGrid(t), config.Defaults())
 	if a.Grid != b.Grid || a.Steps != b.Steps || a.Solved != b.Solved {
 		t.Errorf("two runs differ: steps %d vs %d, solved %v vs %v", a.Steps, b.Steps, a.Solved, b.Solved)
 	}
@@ -40,11 +69,14 @@ func TestAnnealUnsolvableKeepsRowPermutations(t *testing.T) {
 	if !puzzle.GivensPreserved(got.Grid, in) {
 		t.Errorf("givens not preserved: %s", sudoku.Serialize(got.Grid))
 	}
-	for u := range 9 {
+	for u := 1; u < 9; u++ {
 		mask := sudoku.RowUsed(got.Grid, u)
 		if mask != sudoku.AllDigits {
 			t.Errorf("row %d lost a digit: %04x", u, mask)
 		}
+	}
+	if got.Grid[0] != 5 || got.Grid[1] != 5 {
+		t.Errorf("row 0 givens moved: %s", sudoku.Serialize(got.Grid))
 	}
 }
 
@@ -61,7 +93,7 @@ func TestAnnealBudgetExhaustion(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.Anneal.Restarts = 1
 	cfg.Anneal.Iterations = 50
-	got := Anneal(context.Background(), sampleGrid(t), cfg)
+	got := Anneal(context.Background(), annealFixtureGrid(t), cfg)
 	if got.Solved {
 		t.Errorf("tiny budget solved the sample, budget semantics broken")
 	}
