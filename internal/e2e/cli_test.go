@@ -82,6 +82,24 @@ func TestSolveEightLinesFails(t *testing.T) {
 	}
 }
 
+func TestSolveMidlineCarriageReturnFails(t *testing.T) {
+	corrupt := strings.Replace(nineLineInput(puzzle.Sample81), ".", "\r", 1)
+	if first := strings.Split(corrupt, "\n")[0]; len(first) != config.Size {
+		t.Fatalf("corrupt first line is %d bytes, want %d so the length gate passes", len(first), config.Size)
+	}
+	run := runSudoku(t, corrupt)
+	if run.ExitCode != 1 {
+		t.Fatalf("exit code: got %d want 1", run.ExitCode)
+	}
+	if run.Stdout != "" {
+		t.Errorf("stdout: got %q want empty", run.Stdout)
+	}
+	want := fmt.Sprintf("%s %s\n", config.InputErrorPrefix, fmt.Sprintf(config.ErrCharFmt, '\r'))
+	if run.Stderr != want {
+		t.Errorf("stderr: got %q want %q", run.Stderr, want)
+	}
+}
+
 func TestSolveNinthEmptyLineFails(t *testing.T) {
 	run := runSudoku(t, strings.Repeat(".........\n", 8)+"\n")
 	if run.ExitCode != 1 {
