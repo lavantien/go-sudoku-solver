@@ -1,0 +1,32 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultTextAlignment center
+
+participant "caller" as caller
+participant "policy" as policy
+participant "race" as race
+participant "racer 1" as r1
+participant "racer 2" as r2
+participant "racer 3" as r3
+
+caller -> policy : ResolveOrder(grid)
+policy --> caller : racers scored by\nfeature weights
+caller -> race : Race(ctx, grid, cfg, racers)
+
+par goroutine per racer
+  race -> r1 : solve under rctx
+  r1 --> race : solved, steps 1
+else
+  race -> r2 : solve under rctx
+  r2 --> race : unsolved, steps 2
+else
+  race -> r3 : solve under rctx
+  r3 --> race : unsolved, steps 3
+end
+
+r1 -> r1 : first solved result\nwins the race
+race -> race : cancel rctx,\nstragglers unwind on ctx\nand post partial results
+race -> race : steps = sum of all\nreceived results
+race --> caller : winner grid, summed steps
+@enduml

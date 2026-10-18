@@ -1,0 +1,50 @@
+@startuml
+left to right direction
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam package {
+  BackgroundColor White
+  BorderColor Black
+}
+
+package cmd {
+  [sudoku main]
+}
+
+package internal {
+  [cli registry]
+  [app report]
+  [server]
+  [puzzle]
+  [policy]
+  [solver]
+  [matmul]
+  [sudoku grid]
+  [store]
+  [coverbadge]
+}
+
+package web {
+  [templates and static]
+}
+
+[sudoku main] --> [cli registry]
+[cli registry] --> [app report]
+[cli registry] --> [server]
+[cli registry] --> [puzzle]
+[cli registry] --> [solver]
+[cli registry] --> [coverbadge]
+[app report] --> [solver]
+[app report] --> [policy]
+[app report] --> [sudoku grid]
+[server] --> [solver]
+[server] --> [policy]
+[server] --> [puzzle]
+[server] --> [store]
+[server] --> [templates and static]
+[policy] --> [solver]
+[solver] --> [matmul]
+[solver] --> [sudoku grid]
+[puzzle] --> [sudoku grid]
+@enduml

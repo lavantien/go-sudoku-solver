@@ -1,0 +1,34 @@
+@startuml
+left to right direction
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam database {
+  BackgroundColor White
+  BorderColor Black
+}
+
+actor player as user
+
+package "one binary: dist/sudoku" {
+  [solve]
+  [gen]
+  [serve]
+}
+
+database "database/sudoku.db\n(sqlite, WAL)" as db
+actor "browser\n(htmx ui)" as browser
+actor "api client" as api
+
+user --> [solve] : 9 lines on stdin,\n4 method report on stdout
+user --> [gen] : flags clues, seed
+user --> [serve] : flags addr, db
+
+[serve] --> browser : pages at /, /generate,\n/history, /runs/{id}
+[serve] --> api : json at /api/v1/*
+[serve] --> db : runs, run_methods, puzzles
+@enduml

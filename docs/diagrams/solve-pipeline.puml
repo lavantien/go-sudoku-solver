@@ -1,0 +1,28 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultTextAlignment center
+
+participant "stdin" as in
+participant "cli" as cli
+participant "app" as app
+participant "sudoku" as grid
+participant "solver" as solver
+participant "stdout" as out
+
+in -> cli : 9 lines, '.' or 1-9
+cli -> app : Run(cfg)
+app -> grid : ParseInput
+grid --> app : grid or parse error
+alt parse error
+  app -> out : stderr message, exit 1
+else grid accepted
+  app -> grid : RenderGrid(initial)
+  app -> out : Initial Grid block
+  loop each method in registry order
+    app -> solver : method(ctx, grid, cfg)
+    solver --> app : Result{grid, steps, dur, solved}
+    app -> out : grid render, label, step count, time
+  end
+end
+@enduml
