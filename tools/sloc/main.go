@@ -19,22 +19,27 @@ type violation struct {
 }
 
 func main() {
+	os.Exit(run(os.Args[1:]))
+}
+
+func run(args []string) int {
 	root := "."
-	if len(os.Args) > 1 {
-		root = os.Args[1]
+	if len(args) > 0 {
+		root = args[0]
 	}
 	v, err := walkTree(root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
 	for _, f := range v {
 		fmt.Printf("SLOC FAIL %s: %d > %d\n", f.path, f.lines, maxSLOC)
 	}
 	if len(v) > 0 {
-		os.Exit(1)
+		return 1
 	}
 	fmt.Println("sloc ok")
+	return 0
 }
 
 func walkTree(root string) ([]violation, error) {
