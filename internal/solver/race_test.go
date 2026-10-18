@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lavantien/go-sudoku-solver/internal/config"
+	"github.com/lavantien/go-sudoku-solver/internal/puzzle"
 	"github.com/lavantien/go-sudoku-solver/internal/sudoku"
 	"go.uber.org/goleak"
 )
@@ -82,6 +83,27 @@ func TestRaceSynctestFirstFinisherWins(t *testing.T) {
 			t.Errorf("wall: got %v", time.Since(start))
 		}
 	})
+}
+
+func TestRaceUnwindsStragglersOnWinnerCancel(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	g, err := sudoku.Parse81(puzzle.SampleExtreme81)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Defaults()
+	start := time.Now()
+	got := Race(context.Background(), g, cfg)
+	wall := time.Since(start)
+	if !got.Solved {
+		t.Fatalf("race did not solve the extreme sample")
+	}
+	if wall >= 300*time.Millisecond {
+		t.Errorf("wall: got %v want under 300ms, stragglers must unwind on the winner's cancel", wall)
+	}
+	if budget := cfg.Anneal.Restarts * cfg.Anneal.Iterations; got.Steps >= budget {
+		t.Errorf("steps: got %d want under the anneal budget %d, stragglers must contribute partial steps", got.Steps, budget)
+	}
 }
 
 func TestRaceSequentialWorkersOne(t *testing.T) {

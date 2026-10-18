@@ -72,9 +72,11 @@ func raceParallel(ctx context.Context, g sudoku.Grid, c config.Config, racers []
 			winner = res
 			first = false
 		}
-		if res.Solved && !winner.Solved {
-			winner = res
+		if res.Solved {
 			cancel()
+			if !winner.Solved {
+				winner = res
+			}
 		}
 	}
 	return Result{Grid: winner.Grid, Steps: steps, Solved: winner.Solved}
