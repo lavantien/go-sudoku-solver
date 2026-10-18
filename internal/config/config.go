@@ -331,3 +331,40 @@ const (
 	APIPageLimit    = 20
 	APIPageLimitMax = 100
 )
+
+const (
+	CmdScreenshot      = "screenshot"
+	UsageScreenshot    = "capture the web ui and terminal journeys into " + DefaultPicturesDir
+	FlagOut            = "out"
+	FlagOutUsage       = "output directory for the captured pictures"
+	DefaultPicturesDir = "project-pictures"
+
+	BrowserEnv = "SUDOKU_BROWSER"
+
+	ShotWidth  = 1280
+	ShotHeight = 800
+	ShotBudget = 5 * time.Minute
+
+	PictureHome       = "01-home.png"
+	PictureSolve      = "02-solve-results.png"
+	PictureGenerator  = "03-generator.png"
+	PictureHistory    = "04-history.png"
+	PictureRunDetail  = "05-run-detail.png"
+	PictureAPIJSON    = "06-api-json.png"
+	PictureCLISession = "07-cli-session.png"
+	PictureCurlCard   = "08-curl-session.png"
+
+	CliPrompt     = "$ " + BinName + " " + CmdSolve
+	CurlPromptFmt = "$ curl -s -X POST http://%s%s -H %q -d '{\"%s\": %q}'"
+)
+
+var PictureNames = [8]string{
+	PictureHome,
+	PictureSolve,
+	PictureGenerator,
+	PictureHistory,
+	PictureRunDetail,
+	PictureAPIJSON,
+	PictureCLISession,
+	PictureCurlCard,
+}
