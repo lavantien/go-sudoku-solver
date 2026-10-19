@@ -57,7 +57,7 @@ func run(logger *slog.Logger, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	weights, err := fit(logger, samples)
+	weights, err := fit(logger, samples, cfg.MatmulCutoff)
 	if err != nil {
 		return err
 	}
@@ -125,8 +125,8 @@ func raceLabel(racers []solver.Method, g sudoku.Grid, cfg config.Config, totals 
 	return winner, nil
 }
 
-func fit(logger *slog.Logger, samples []labeled) ([][]float64, error) {
-	logging.Enter(logger, "fit", "samples", len(samples))
+func fit(logger *slog.Logger, samples []labeled, cutoff int) ([][]float64, error) {
+	logging.Enter(logger, "fit", "samples", len(samples), "cutoff", cutoff)
 	width := len(samples[0].features)
 	a := matmul.Dense{N: width, Data: make([]float64, width*width)}
 	xty := make([]float64, width*racerCount)
@@ -154,7 +154,7 @@ func fit(logger *slog.Logger, samples []labeled) ([][]float64, error) {
 		logging.Fail(logger, "fit", err, "ridge", ridgeLambda)
 		return nil, fmt.Errorf("fit: %w", err)
 	}
-	check := matmul.MulClassical(a, inv)
+	check := matmul.MulStrassen(a, inv, cutoff)
 	for i := range width {
 		for j := range width {
 			want := 0.0

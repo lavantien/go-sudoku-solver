@@ -52,6 +52,33 @@ func TestTrainTinyCorpusIsByteIdenticalOnRerun(t *testing.T) {
 	}
 }
 
+func TestFitStrassenCutoffReproducesClassicalBytes(t *testing.T) {
+	cfg := tinyTrainCfg(t)
+	logger := logging.New("")
+	samples, err := corpus(logger, cfg)
+	if err != nil {
+		t.Fatalf("corpus: %v", err)
+	}
+	width := len(samples[0].features)
+	padded := 1
+	for padded < width {
+		padded *= 2
+	}
+	defaultCutoff := config.Defaults().MatmulCutoff
+	atPadded, err := fit(logger, samples, padded)
+	if err != nil {
+		t.Fatalf("fit at the padded cutoff %d: %v", padded, err)
+	}
+	atDefault, err := fit(logger, samples, defaultCutoff)
+	if err != nil {
+		t.Fatalf("fit at the default cutoff %d: %v", defaultCutoff, err)
+	}
+	if !bytes.Equal(render(atPadded), render(atDefault)) {
+		t.Errorf("cutoff %d drifted from the classical bytes kept at the default cutoff %d:\npadded:  %q\ndefault: %q",
+			padded, defaultCutoff, render(atPadded), render(atDefault))
+	}
+}
+
 func TestTrainTablePathHonorsOverrideAndDefault(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.Train.TablePath = filepath.Join("x", "y", "t.go")
