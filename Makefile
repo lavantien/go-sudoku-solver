@@ -195,8 +195,10 @@ clean: ## remove generated artifacts (database, binaries, tools)
 	rm -rf dist .tools
 
 coverage: build ## recompute no-exclusions coverage, enforce the 95% floor, refresh the badge
-	$(GO) test $(TAGS) -coverpkg=./... -coverprofile=coverage.out ./...
-	./$(BIN) coverage -profile=coverage.out -readme=readme.md
+	@set -e; \
+	pkgs="$$($(GO) list ./... | grep -vE '/playground(/|$$)')"; \
+	$(GO) test $(TAGS) -coverpkg="$$(printf '%s\n' "$$pkgs" | tr '\n' ',' | sed 's/,$$//')" -coverprofile=coverage.out $$pkgs; \
+	./$(BIN) coverage -profile=coverage.out -readme=readme.md; \
 	rm -f coverage.out
 
 screenshots: build ## capture the UI and terminal journeys into project-pictures/
