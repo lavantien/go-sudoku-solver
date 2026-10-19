@@ -236,6 +236,13 @@ func TestRemoveAndAddClueGuards(t *testing.T) {
 	}
 }
 
+func TestEvolveCliExitCodes(t *testing.T) {
+	cfg := tinyEvolveCfg()
+	if code := cli(cfg); code != 0 {
+		t.Errorf("cli on a tiny budget: got exit %d want 0", code)
+	}
+}
+
 func TestCrossoverChildWithIdenticalParentsReturnsParent(t *testing.T) {
 	rng := rand.New(rand.NewPCG(2, 2))
 	parent := sampleIndividual(t)
@@ -248,6 +255,34 @@ func TestCrossoverChildWithIdenticalParentsReturnsParent(t *testing.T) {
 	}
 }
 
+func TestCrossoverChildTrimsAndAcceptsSameSolutionUnion(t *testing.T) {
+	solved, err := sudoku.Parse81(puzzle.SampleSolution81)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dense := individual{grid: solved, sol: solved, steps: 9, clues: 81}
+	sparse := dense
+	for i := range config.Cells {
+		if i%2 == 0 {
+			sparse.grid[i] = config.EmptyDigit
+		}
+	}
+	sparse.clues = cluesOf(sparse.grid)
+	c := &counters{}
+	for seed := uint64(1); seed <= 20; seed++ {
+		got := crossoverChild(rand.New(rand.NewPCG(seed, seed)), dense, sparse, c)
+		if got.clues < minClues || got.clues > maxClues {
+			t.Fatalf("seed %d: child clues %d outside the band", seed, got.clues)
+		}
+		if got.grid != dense.grid && got.grid != sparse.grid {
+			return
+		}
+	}
+	if c.crossoverAccept == 0 {
+		t.Error("twenty crossovers never accepted a union child")
+	}
+}
+
 func TestCrossoverChildPrefersTheHarderLead(t *testing.T) {
 	rng := rand.New(rand.NewPCG(4, 4))
 	hard := sampleIndividual(t)
@@ -257,6 +292,27 @@ func TestCrossoverChildPrefersTheHarderLead(t *testing.T) {
 	got := crossoverChild(rng, easy, hard, c)
 	if got.grid != hard.grid {
 		t.Errorf("crossover of identical grids must return the harder lead")
+	}
+}
+
+func TestSwapWithinBandReturnsEmptyGridUnchanged(t *testing.T) {
+	rng := rand.New(rand.NewPCG(12, 12))
+	var empty sudoku.Grid
+	if got := swapWithinBand(rng, empty); got != empty {
+		t.Error("grid without givens must come back unchanged")
+	}
+}
+
+func TestEvaluateRejectsNonUniqueInBandGrids(t *testing.T) {
+	ruin := sampleIndividual(t).grid
+	for cluesOf(ruin) > minClues && isUnique(ruin) {
+		ruin[givenCells(ruin)[0]] = config.EmptyDigit
+	}
+	if cluesOf(ruin) < minClues || isUnique(ruin) {
+		t.Fatalf("could not build an in-band non-unique grid: %d clues, unique %v", cluesOf(ruin), isUnique(ruin))
+	}
+	if _, ok := evaluate(ruin); ok {
+		t.Error("grid that lost uniqueness must be rejected while staying in the band")
 	}
 }
 

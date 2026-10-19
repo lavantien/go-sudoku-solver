@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/lavantien/go-sudoku-solver/internal/config"
 	"github.com/lavantien/go-sudoku-solver/internal/logging"
+	"github.com/lavantien/go-sudoku-solver/internal/matmul"
 )
 
 func tinyTrainCfg(t *testing.T) config.Config {
@@ -74,6 +76,39 @@ func TestTrainEmitFailureFailsTheRun(t *testing.T) {
 	cfg.Train.TablePath = filepath.Join(t.TempDir(), "no-dir", "table_gen.go")
 	if err := run(logging.New(""), cfg); err == nil {
 		t.Error("unwritable table path: got nil want error")
+	}
+}
+
+func TestTrainCliExitCodes(t *testing.T) {
+	cfg := tinyTrainCfg(t)
+	if code := cli(cfg); code != 0 {
+		t.Errorf("cli on a tiny corpus: got exit %d want 0", code)
+	}
+	cfg.Train.TablePath = filepath.Join(t.TempDir(), "no-dir", "table_gen.go")
+	if code := cli(cfg); code != 1 {
+		t.Errorf("cli with an unwritable table: got exit %d want 1", code)
+	}
+}
+
+func TestInvertRejectsSingularAndSwapsPivots(t *testing.T) {
+	singular := matmul.Dense{N: 2, Data: []float64{0, 1, 0, 0}}
+	if _, err := invert(singular); err == nil {
+		t.Error("singular matrix: got nil want error")
+	}
+	needsSwap := matmul.Dense{N: 2, Data: []float64{0, 1, 1, 2}}
+	inv, err := invert(needsSwap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prod := matmul.MulClassical(needsSwap, inv)
+	for i := range 4 {
+		want := 0.0
+		if i == 0 || i == 3 {
+			want = 1.0
+		}
+		if math.Abs(prod.Data[i]-want) > 1e-9 {
+			t.Errorf("inverse at %d: got %v want %v", i, prod.Data[i], want)
+		}
 	}
 }
 

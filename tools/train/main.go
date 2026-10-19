@@ -39,12 +39,16 @@ type labeled struct {
 }
 
 func main() {
-	cfg := config.Load()
+	os.Exit(cli(config.Load()))
+}
+
+func cli(cfg config.Config) int {
 	logger := logging.New(cfg.LogLevel)
 	if err := run(logger, cfg); err != nil {
 		fmt.Fprintln(os.Stderr, "train:", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 func run(logger *slog.Logger, cfg config.Config) error {
