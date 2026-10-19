@@ -102,7 +102,7 @@ func bootSite(ctx context.Context, cfg config.Config, logger *slog.Logger) (*sit
 		return nil, err
 	}
 	srv := server.New(ctx, cfg, st, logger)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := net.Listen("tcp", config.ShotListenAddr)
 	if err != nil {
 		_ = st.Close()
 		_ = os.RemoveAll(tmpDir)
