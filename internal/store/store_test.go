@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -264,6 +265,62 @@ func TestCloseIdempotent(t *testing.T) {
 	}
 	if err := s.Close(); err != nil {
 		t.Fatalf("second close: %v", err)
+	}
+}
+
+func TestCloseRacingOpsKeepsNoPanicAndPostCloseOpsError(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "race.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	rows := []MethodRow{{Method: "propagate", Grid81: grid81(0), Steps: 1, TimeNS: 1, Solved: true}}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			_, _ = s.InsertRun(grid81(0), "probe", rows)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			_, _ = s.GetRun(1)
+		}
+	}()
+	if err := s.Close(); err != nil {
+		t.Fatalf("close under racing ops: %v", err)
+	}
+	close(stop)
+	wg.Wait()
+	if _, err := s.InsertRun(grid81(0), "probe", rows); !errors.Is(err, ErrClosed) {
+		t.Errorf("insert after close: got %v want ErrClosed", err)
+	}
+	if _, err := s.GetRun(1); !errors.Is(err, ErrClosed) {
+		t.Errorf("get after close: got %v want ErrClosed", err)
+	}
+	if _, err := s.ListRuns(10, 0); !errors.Is(err, ErrClosed) {
+		t.Errorf("list after close: got %v want ErrClosed", err)
+	}
+	if _, err := s.CountRuns(); !errors.Is(err, ErrClosed) {
+		t.Errorf("count after close: got %v want ErrClosed", err)
+	}
+	if _, err := s.InsertPuzzle(grid81(0), 30, 1); !errors.Is(err, ErrClosed) {
+		t.Errorf("insert puzzle after close: got %v want ErrClosed", err)
+	}
+	if _, err := s.ListPuzzles(10, 0); !errors.Is(err, ErrClosed) {
+		t.Errorf("list puzzles after close: got %v want ErrClosed", err)
 	}
 }
 

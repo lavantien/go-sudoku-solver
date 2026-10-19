@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -32,7 +33,10 @@ const (
 	countRunsStmt          = `SELECT COUNT(*) FROM runs`
 )
 
-var ErrNotFound = errors.New("store: not found")
+var (
+	ErrNotFound = errors.New("store: not found")
+	ErrClosed   = errors.New("store: closed")
+)
 
 type MethodRow struct {
 	Method string
@@ -64,6 +68,7 @@ type Puzzle struct {
 }
 
 type Store struct {
+	mu  sync.Mutex
 	db  *sql.DB
 	log *slog.Logger
 }
@@ -98,8 +103,19 @@ func Open(path string) (*Store, error) {
 	return &Store{db: db, log: log}, nil
 }
 
+func (s *Store) handle() (*sql.DB, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.db == nil {
+		return nil, ErrClosed
+	}
+	return s.db, nil
+}
+
 func (s *Store) Close() error {
 	logging.Enter(s.log, "store.close")
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.db == nil {
 		logging.Exit(s.log, "store.close", "already_closed", true)
 		return nil
@@ -116,7 +132,12 @@ func (s *Store) Close() error {
 
 func (s *Store) InsertRun(input81, source string, methods []MethodRow) (int64, error) {
 	logging.Enter(s.log, "store.insert_run", "source", source, "methods", len(methods))
-	tx, err := s.db.Begin()
+	db, err := s.handle()
+	if err != nil {
+		logging.Fail(s.log, "store.insert_run", err)
+		return 0, fmt.Errorf("store insert run: %w", err)
+	}
+	tx, err := db.Begin()
 	if err != nil {
 		logging.Fail(s.log, "store.insert_run", err)
 		return 0, fmt.Errorf("store insert run: %w", err)
@@ -151,7 +172,12 @@ func (s *Store) InsertRun(input81, source string, methods []MethodRow) (int64, e
 
 func (s *Store) ListRuns(limit, offset int) ([]RunSummary, error) {
 	logging.Enter(s.log, "store.list_runs", "limit", limit, "offset", offset)
-	rows, err := s.db.Query(selectRunSummariesStmt, limit, offset)
+	db, err := s.handle()
+	if err != nil {
+		logging.Fail(s.log, "store.list_runs", err)
+		return nil, fmt.Errorf("store list runs: %w", err)
+	}
+	rows, err := db.Query(selectRunSummariesStmt, limit, offset)
 	if err != nil {
 		logging.Fail(s.log, "store.list_runs", err)
 		return nil, fmt.Errorf("store list runs: %w", err)
@@ -176,8 +202,13 @@ func (s *Store) ListRuns(limit, offset int) ([]RunSummary, error) {
 
 func (s *Store) GetRun(id int64) (*RunDetail, error) {
 	logging.Enter(s.log, "store.get_run", "id", id)
+	db, err := s.handle()
+	if err != nil {
+		logging.Fail(s.log, "store.get_run", err, "id", id)
+		return nil, fmt.Errorf("store get run %d: %w", id, err)
+	}
 	d := &RunDetail{}
-	err := s.db.QueryRow(selectRunSummaryStmt, id).Scan(&d.ID, &d.CreatedAt, &d.Input81, &d.Source, &d.SolvedAny)
+	err = db.QueryRow(selectRunSummaryStmt, id).Scan(&d.ID, &d.CreatedAt, &d.Input81, &d.Source, &d.SolvedAny)
 	if errors.Is(err, sql.ErrNoRows) {
 		logging.Fail(s.log, "store.get_run", ErrNotFound, "id", id)
 		return nil, fmt.Errorf("store get run %d: %w", id, ErrNotFound)
@@ -186,7 +217,7 @@ func (s *Store) GetRun(id int64) (*RunDetail, error) {
 		logging.Fail(s.log, "store.get_run", err, "id", id)
 		return nil, fmt.Errorf("store get run %d: %w", id, err)
 	}
-	rows, err := s.db.Query(selectRunMethodsStmt, id)
+	rows, err := db.Query(selectRunMethodsStmt, id)
 	if err != nil {
 		logging.Fail(s.log, "store.get_run", err, "id", id)
 		return nil, fmt.Errorf("store get run %d methods: %w", id, err)
@@ -210,8 +241,13 @@ func (s *Store) GetRun(id int64) (*RunDetail, error) {
 
 func (s *Store) InsertPuzzle(grid81 string, clues int, seed int64) (int64, error) {
 	logging.Enter(s.log, "store.insert_puzzle", "clues", clues, "seed", seed)
+	db, err := s.handle()
+	if err != nil {
+		logging.Fail(s.log, "store.insert_puzzle", err)
+		return 0, fmt.Errorf("store insert puzzle: %w", err)
+	}
 	created := time.Now().UTC().Format(time.RFC3339)
-	res, err := s.db.Exec(insertPuzzleStmt, grid81, clues, seed, created)
+	res, err := db.Exec(insertPuzzleStmt, grid81, clues, seed, created)
 	if err != nil {
 		logging.Fail(s.log, "store.insert_puzzle", err)
 		return 0, fmt.Errorf("store insert puzzle: %w", err)
@@ -227,7 +263,12 @@ func (s *Store) InsertPuzzle(grid81 string, clues int, seed int64) (int64, error
 
 func (s *Store) ListPuzzles(limit, offset int) ([]Puzzle, error) {
 	logging.Enter(s.log, "store.list_puzzles", "limit", limit, "offset", offset)
-	rows, err := s.db.Query(selectPuzzlesStmt, limit, offset)
+	db, err := s.handle()
+	if err != nil {
+		logging.Fail(s.log, "store.list_puzzles", err)
+		return nil, fmt.Errorf("store list puzzles: %w", err)
+	}
+	rows, err := db.Query(selectPuzzlesStmt, limit, offset)
 	if err != nil {
 		logging.Fail(s.log, "store.list_puzzles", err)
 		return nil, fmt.Errorf("store list puzzles: %w", err)
@@ -252,8 +293,13 @@ func (s *Store) ListPuzzles(limit, offset int) ([]Puzzle, error) {
 
 func (s *Store) CountRuns() (int64, error) {
 	logging.Enter(s.log, "store.count_runs")
+	db, err := s.handle()
+	if err != nil {
+		logging.Fail(s.log, "store.count_runs", err)
+		return 0, fmt.Errorf("store count runs: %w", err)
+	}
 	var n int64
-	if err := s.db.QueryRow(countRunsStmt).Scan(&n); err != nil {
+	if err := db.QueryRow(countRunsStmt).Scan(&n); err != nil {
 		logging.Fail(s.log, "store.count_runs", err)
 		return 0, fmt.Errorf("store count runs: %w", err)
 	}
