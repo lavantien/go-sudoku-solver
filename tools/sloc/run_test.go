@@ -19,6 +19,12 @@ func TestRunDefaultsToWorkingDirAndPasses(t *testing.T) {
 	}
 }
 
+func TestCountReportsUnreadableFiles(t *testing.T) {
+	if _, err := count(filepath.Join(t.TempDir(), "gone.go")); err == nil {
+		t.Error("missing file: got nil want error")
+	}
+}
+
 func TestRunFailsOnViolation(t *testing.T) {
 	root := t.TempDir()
 	writeGoFile(t, filepath.Join(root, "over.go"), codeLines(1001))

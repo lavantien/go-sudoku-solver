@@ -283,6 +283,69 @@ func TestCrossoverChildTrimsAndAcceptsSameSolutionUnion(t *testing.T) {
 	}
 }
 
+func TestCrossoverChildMixesDistinctSolutions(t *testing.T) {
+	solved, err := sudoku.Parse81(puzzle.SampleSolution81)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := relabelGivens(rand.New(rand.NewPCG(21, 21)), solved)
+	a := individual{grid: solved, sol: solved, steps: 10}
+	b := individual{grid: other, sol: other, steps: 5}
+	for i := range config.Cells {
+		if i%3 == 0 {
+			a.grid[i] = config.EmptyDigit
+		}
+		if i%3 == 1 {
+			b.grid[i] = config.EmptyDigit
+		}
+	}
+	a.clues, b.clues = cluesOf(a.grid), cluesOf(b.grid)
+	c := &counters{}
+	for seed := uint64(1); seed <= 10; seed++ {
+		got := crossoverChild(rand.New(rand.NewPCG(seed, seed)), a, b, c)
+		if got.grid == a.grid || got.grid == b.grid {
+			continue
+		}
+		if got.clues < minClues || got.clues > maxClues {
+			t.Fatalf("seed %d: child clues %d outside the band", seed, got.clues)
+		}
+	}
+	if c.crossoverAttempt != 10 {
+		t.Errorf("attempt counter: got %d want 10", c.crossoverAttempt)
+	}
+}
+
+func TestEvaluateSolveRejectsUnsolvableInBandGrids(t *testing.T) {
+	base := sampleIndividual(t).grid
+	rows := map[int][]int{}
+	for i := range base {
+		if base[i] != config.EmptyDigit {
+			rows[sudoku.CellRow(i)] = append(rows[sudoku.CellRow(i)], i)
+		}
+	}
+	at, twin := -1, -1
+	for _, cells := range rows {
+		if len(cells) >= 2 {
+			at, twin = cells[0], cells[1]
+			break
+		}
+	}
+	if at < 0 {
+		t.Fatal("no row carries two givens")
+	}
+	broken := base
+	broken[twin] = base[at]
+	if broken == base {
+		t.Fatal("the clash fixture must alter the grid")
+	}
+	if cluesOf(broken) != cluesOf(base) {
+		t.Fatalf("clue count moved: got %d want %d", cluesOf(broken), cluesOf(base))
+	}
+	if _, ok := evaluateSolve(broken); ok {
+		t.Error("grid with a duplicated digit in one row must fail evaluation while staying in the band")
+	}
+}
+
 func TestCrossoverChildPrefersTheHarderLead(t *testing.T) {
 	rng := rand.New(rand.NewPCG(4, 4))
 	hard := sampleIndividual(t)
