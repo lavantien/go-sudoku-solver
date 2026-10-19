@@ -19,12 +19,17 @@ func TestTestPkgKillsTheTreeOnTimeout(t *testing.T) {
 	})
 	pidFile := filepath.Join(root, "sleeper.pid")
 	t.Setenv("MUTATOR_TREEKILL_PIDFILE", pidFile)
+	pre := exec.Command("go", "test", "-c", "-tags", "mutatorfixture", "-o", filepath.Join(root, "prebuilt.test"), "fixture/subject")
+	pre.Dir = root
+	if out, err := pre.CombinedOutput(); err != nil {
+		t.Fatalf("fixture prebuild: %v: %s", err, out)
+	}
 	done := make(chan testOutcome, 1)
-	go func() { done <- testPkg(root, "fixture/subject", "mutatorfixture", 2*time.Second) }()
+	go func() { done <- testPkg(root, "fixture/subject", "mutatorfixture", 5*time.Second) }()
 	var got testOutcome
 	select {
 	case got = <-done:
-	case <-time.After(2*time.Second + killTreeGrace + time.Minute):
+	case <-time.After(5*time.Second + killTreeGrace + time.Minute):
 		t.Fatal("testPkg never returned after the mutant timeout")
 	}
 	if got != outcomeInvalid {
