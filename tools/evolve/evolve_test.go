@@ -49,8 +49,7 @@ var durationRe = regexp.MustCompile(`(stopped by .+ after [0-9]+ generations in)
 func TestEvolveTinyBudgetRunsDeterministically(t *testing.T) {
 	cfg := tinyEvolveCfg()
 	logger := logging.New("")
-	var first string
-	first = captureStdout(t, func() {
+	first := captureStdout(t, func() {
 		if err := run(logger, cfg); err != nil {
 			t.Fatalf("first evolve run: %v", err)
 		}
