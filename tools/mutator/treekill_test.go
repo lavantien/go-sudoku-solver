@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,7 +13,8 @@ import (
 	"time"
 )
 
-func TestTestPkgKillsTheTreeOnTimeout(t *testing.T) {
+func hangFixtureModule(t *testing.T) (string, string) {
+	t.Helper()
 	root := fixtureModule(t, map[string]string{
 		"go.mod":               "module fixture\n\ngo 1.27\n",
 		"subject/s.go":         "package subject\n\nvar A = 1 < 2\n",
@@ -24,16 +27,41 @@ func TestTestPkgKillsTheTreeOnTimeout(t *testing.T) {
 	if out, err := pre.CombinedOutput(); err != nil {
 		t.Fatalf("fixture prebuild: %v: %s", err, out)
 	}
-	done := make(chan testOutcome, 1)
-	go func() { done <- testPkg(root, "fixture/subject", "mutatorfixture", 5*time.Second) }()
-	var got testOutcome
-	select {
-	case got = <-done:
-	case <-time.After(5*time.Second + killTreeGrace + time.Minute):
-		t.Fatal("testPkg never returned after the mutant timeout")
+	return root, pidFile
+}
+
+func TestCancelKillsTheWholeTestTree(t *testing.T) {
+	root, pidFile := hangFixtureModule(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cmd := goTestCmd(ctx, root, "fixture/subject", "mutatorfixture")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
 	}
-	if got != outcomeInvalid {
-		t.Fatalf("outcome: got %v want invalid", got)
+	up := time.Now().Add(time.Minute)
+	for {
+		if _, err := os.ReadFile(pidFile); err == nil {
+			break
+		}
+		if time.Now().After(up) {
+			_ = killTree(cmd.Process.Pid)
+			t.Fatal("sleeper never reported in within a minute")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	cancel()
+	done := make(chan struct{})
+	go func() {
+		_ = cmd.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(killTreeGrace + 30*time.Second):
+		t.Fatal("cmd.Wait never returned after the tree kill")
 	}
 	raw, err := os.ReadFile(pidFile)
 	if err != nil {
@@ -49,6 +77,13 @@ func TestTestPkgKillsTheTreeOnTimeout(t *testing.T) {
 			t.Fatalf("sleeper process %d survived the tree kill", pid)
 		}
 		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func TestTestPkgClassifiesTimeoutAsInvalid(t *testing.T) {
+	root, _ := hangFixtureModule(t)
+	if got := testPkg(root, "fixture/subject", "mutatorfixture", 3*time.Second); got != outcomeInvalid {
+		t.Fatalf("outcome: got %v want invalid", got)
 	}
 }
 

@@ -258,18 +258,9 @@ func replaceAt(b []byte, offset int, oldOp, newOp string) []byte {
 }
 
 func testPkg(moduleRoot, pkg, tags string, timeout time.Duration) testOutcome {
-	args := []string{"test", "-run", "^Test"}
-	if tags != "" {
-		args = append(args, "-tags", tags)
-	}
-	args = append(args, pkg)
 	ctx, cancelCtx := context.WithTimeout(context.Background(), timeout)
 	defer cancelCtx()
-	cmd := exec.CommandContext(ctx, "go", args...)
-	cmd.Dir = moduleRoot
-	cmd.Env = os.Environ()
-	cmd.Cancel = func() error { return killTree(cmd.Process.Pid) }
-	cmd.WaitDelay = killTreeGrace
+	cmd := goTestCmd(ctx, moduleRoot, pkg, tags)
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
@@ -280,6 +271,20 @@ func testPkg(moduleRoot, pkg, tags string, timeout time.Duration) testOutcome {
 		return outcomeKilled
 	}
 	return outcomeSurvived
+}
+
+func goTestCmd(ctx context.Context, moduleRoot, pkg, tags string) *exec.Cmd {
+	args := []string{"test", "-run", "^Test"}
+	if tags != "" {
+		args = append(args, "-tags", tags)
+	}
+	args = append(args, pkg)
+	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd.Dir = moduleRoot
+	cmd.Env = os.Environ()
+	cmd.Cancel = func() error { return killTree(cmd.Process.Pid) }
+	cmd.WaitDelay = killTreeGrace
+	return cmd
 }
 
 func killTree(pid int) error {
