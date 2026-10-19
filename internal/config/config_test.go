@@ -71,6 +71,58 @@ func TestDefaults(t *testing.T) {
 	if c.Anneal.Restarts <= 0 || c.Anneal.Iterations <= 0 || c.Anneal.Seed != 1 || c.Anneal.TempEnd <= 0 || c.Anneal.TempStart <= c.Anneal.TempEnd {
 		t.Errorf("anneal defaults: got %+v", c.Anneal)
 	}
+	wantEvolve := EvolveConfig{
+		Seed:           20261019,
+		Population:     40,
+		Generations:    400,
+		EvalCap:        20 * time.Second,
+		RunCap:         10 * time.Minute,
+		EliteCount:     2,
+		TournamentK:    3,
+		MinClues:       20,
+		MaxClues:       40,
+		CrossoverPct:   10,
+		RelabelPct:     25,
+		SwapPct:        30,
+		RemovePct:      35,
+		RedigAttempts:  12,
+		ProgressStride: 40,
+		SeedStride:     104729,
+		SeedAttempts:   8,
+	}
+	if c.Evolve != wantEvolve {
+		t.Errorf("evolve defaults: got %+v want %+v", c.Evolve, wantEvolve)
+	}
+	wantTrain := TrainConfig{
+		Seeds:       200,
+		TablePath:   "",
+		ClueBase:    24,
+		ClueSpan:    27,
+		ClueStride:  7,
+		RacerCount:  3,
+		RidgeLambda: 1.0,
+		PivotFloor:  1e-12,
+		InverseTol:  1e-6,
+		TablePerm:   0o644,
+	}
+	if c.Train != wantTrain {
+		t.Errorf("train defaults: got %+v want %+v", c.Train, wantTrain)
+	}
+}
+
+func TestTuningConstants(t *testing.T) {
+	if AnnealScale != 1000 || AnnealRotateRate != 5 {
+		t.Errorf("anneal tuning: got scale %d rotate rate %d", AnnealScale, AnnealRotateRate)
+	}
+	if DBBusyTimeout != 5*time.Second {
+		t.Errorf("db busy timeout: got %v", DBBusyTimeout)
+	}
+	if ShotListenAddr != "127.0.0.1:0" {
+		t.Errorf("shot listen addr: got %q", ShotListenAddr)
+	}
+	if MutatorMaxSlots != 8 || MutatorTestTimeout != 3*time.Minute || MutatorKillTreeGrace != 10*time.Second {
+		t.Errorf("mutator tuning: got slots %d timeout %v grace %v", MutatorMaxSlots, MutatorTestTimeout, MutatorKillTreeGrace)
+	}
 }
 
 func TestLoadEnvOverrides(t *testing.T) {

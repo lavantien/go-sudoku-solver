@@ -33,7 +33,9 @@ const (
 	Version = "v1.0"
 	BinName = "sudoku"
 
-	AnnealTempMax = 1 << 50
+	AnnealTempMax    = 1 << 50
+	AnnealScale      = 1000
+	AnnealRotateRate = 5
 
 	LabelFmt = "\n%s:\n"
 
@@ -95,14 +97,36 @@ type GenConfig struct {
 }
 
 type EvolveConfig struct {
-	Seed        uint64
-	Population  int
-	Generations int
+	Seed           uint64
+	Population     int
+	Generations    int
+	EvalCap        time.Duration
+	RunCap         time.Duration
+	EliteCount     int
+	TournamentK    int
+	MinClues       int
+	MaxClues       int
+	CrossoverPct   int
+	RelabelPct     int
+	SwapPct        int
+	RemovePct      int
+	RedigAttempts  int
+	ProgressStride int
+	SeedStride     int
+	SeedAttempts   int
 }
 
 type TrainConfig struct {
-	Seeds     int
-	TablePath string
+	Seeds       int
+	TablePath   string
+	ClueBase    int
+	ClueSpan    int
+	ClueStride  int
+	RacerCount  int
+	RidgeLambda float64
+	PivotFloor  float64
+	InverseTol  float64
+	TablePerm   os.FileMode
 }
 
 type Config struct {
@@ -130,9 +154,38 @@ func Defaults() Config {
 			TempStart:  4000,
 			TempEnd:    100,
 		},
-		Gen:    GenConfig{Clues: 30, Seed: 1},
-		Evolve: EvolveConfig{Seed: 20261019, Population: 40, Generations: 400},
-		Train:  TrainConfig{Seeds: 200, TablePath: ""},
+		Gen: GenConfig{Clues: 30, Seed: 1},
+		Evolve: EvolveConfig{
+			Seed:           20261019,
+			Population:     40,
+			Generations:    400,
+			EvalCap:        20 * time.Second,
+			RunCap:         10 * time.Minute,
+			EliteCount:     2,
+			TournamentK:    3,
+			MinClues:       20,
+			MaxClues:       40,
+			CrossoverPct:   10,
+			RelabelPct:     25,
+			SwapPct:        30,
+			RemovePct:      35,
+			RedigAttempts:  12,
+			ProgressStride: 40,
+			SeedStride:     104729,
+			SeedAttempts:   8,
+		},
+		Train: TrainConfig{
+			Seeds:       200,
+			TablePath:   "",
+			ClueBase:    24,
+			ClueSpan:    27,
+			ClueStride:  7,
+			RacerCount:  3,
+			RidgeLambda: 1.0,
+			PivotFloor:  1e-12,
+			InverseTol:  1e-6,
+			TablePerm:   0o644,
+		},
 		Server: ServerConfig{
 			Addr:            "127.0.0.1:8080",
 			ReadTimeout:     5 * time.Second,
@@ -335,6 +388,7 @@ const (
 	FlagAddrUsage = "listen address for the web server"
 	FlagDB        = "db"
 	FlagDBUsage   = "sqlite database path"
+	DBBusyTimeout = 5 * time.Second
 
 	ServeAddrLineFmt = "%s serve listening on %s\n"
 	ServeAddrPrefix  = BinName + " serve listening on "
@@ -393,9 +447,10 @@ const (
 
 	BrowserEnv = "SUDOKU_BROWSER"
 
-	ShotWidth  = 1280
-	ShotHeight = 800
-	ShotBudget = 5 * time.Minute
+	ShotWidth      = 1280
+	ShotHeight     = 800
+	ShotBudget     = 5 * time.Minute
+	ShotListenAddr = "127.0.0.1:0"
 
 	PictureHome       = "01-home.png"
 	PictureSolve      = "02-solve-results.png"
@@ -420,3 +475,9 @@ var PictureNames = [8]string{
 	PictureCLISession,
 	PictureCurlCard,
 }
+
+const (
+	MutatorMaxSlots      = 8
+	MutatorTestTimeout   = 3 * time.Minute
+	MutatorKillTreeGrace = 10 * time.Second
+)
