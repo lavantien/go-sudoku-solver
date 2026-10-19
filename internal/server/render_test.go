@@ -115,7 +115,6 @@ func TestShutdownWithStalledClientReturnsContextError(t *testing.T) {
 		t.Fatal(err)
 	}
 	serveErr := make(chan error, 1)
-	go func() { serveErr <- srv.Serve(ln) }()
 	active := make(chan struct{})
 	srv.http.ConnState = func(_ net.Conn, st http.ConnState) {
 		if st == http.StateActive {
@@ -126,6 +125,7 @@ func TestShutdownWithStalledClientReturnsContextError(t *testing.T) {
 			}
 		}
 	}
+	go func() { serveErr <- srv.Serve(ln) }()
 	conn, err := net.Dial("tcp", ln.Addr().String())
 	if err != nil {
 		t.Fatal(err)
