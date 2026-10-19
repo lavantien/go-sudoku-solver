@@ -37,6 +37,9 @@ func bootServe(t *testing.T, args []string) (string, func()) {
 				return
 			}
 		}
+		if err := sc.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "serve: stderr scan: %v\n", err)
+		}
 		close(addrCh)
 	}()
 	var addr string
