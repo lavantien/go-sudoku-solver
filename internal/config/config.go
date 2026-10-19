@@ -316,6 +316,9 @@ const (
 	FlagReadmeUsage  = "readme path to update"
 	DefaultProfile   = "coverage.out"
 	DefaultReadme    = "readme.md"
+
+	CoverageFloor       = 95.0
+	CoverageFloorErrFmt = "coverage %.1f%% is below the %.1f%% floor"
 )
 
 const (

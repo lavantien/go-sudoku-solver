@@ -189,7 +189,7 @@ clean: ## remove generated artifacts (database, binaries, tools)
 	rm -f $(DB) *.exe *.test *.out
 	rm -rf dist .tools
 
-coverage: build ## recompute Go test coverage and refresh the readme coverage badge
+coverage: build ## recompute no-exclusions coverage, enforce the 95% floor, refresh the badge
 	$(GO) test $(TAGS) -coverpkg=./... -coverprofile=coverage.out ./...
 	./$(BIN) coverage -profile=coverage.out -readme=readme.md
 	rm -f coverage.out

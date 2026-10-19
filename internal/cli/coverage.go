@@ -63,5 +63,8 @@ func coverageRun(profilePath, readmePath string) (float64, error) {
 	} else {
 		fmt.Printf("coverage %.1f%%: readme badge already current\n", pct)
 	}
+	if pct < config.CoverageFloor {
+		return pct, fmt.Errorf(config.CoverageFloorErrFmt, pct, config.CoverageFloor)
+	}
 	return pct, nil
 }

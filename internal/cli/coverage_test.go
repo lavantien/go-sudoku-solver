@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,9 +25,32 @@ func writeCoverageInputs(t *testing.T, profile, readme string) (string, string) 
 	return profilePath, readmePath
 }
 
+func TestRunCoverageBelowFloorFailsButRecordsReality(t *testing.T) {
+	profilePath, readmePath := writeCoverageInputs(t,
+		"mode: set\nfoo.go:1.1,2.2 9 1\nbar.go:3.1,4.2 1 0\n",
+		"<!-- coverage:START -->\nold\n<!-- coverage:END -->\n")
+	pct, err := coverageRun(profilePath, readmePath)
+	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("%.1f%% floor", config.CoverageFloor)) {
+		t.Errorf("below floor: got pct %.1f err %v want the floor error", pct, err)
+	}
+	got, _ := os.ReadFile(readmePath)
+	if !strings.Contains(string(got), "coverage: 90.0% of statements") {
+		t.Errorf("badge must still record the real number: %s", got)
+	}
+}
+
+func TestRunCoverageAtFloorPasses(t *testing.T) {
+	profilePath, readmePath := writeCoverageInputs(t,
+		"mode: set\nfoo.go:1.1,2.2 19 1\nbar.go:3.1,4.2 1 0\n",
+		"<!-- coverage:START -->\nold\n<!-- coverage:END -->\n")
+	if _, err := coverageRun(profilePath, readmePath); err != nil {
+		t.Errorf("exactly at the floor: got %v want nil", err)
+	}
+}
+
 func TestRunCoverageRewritesBadgeBetweenMarkers(t *testing.T) {
 	profilePath, readmePath := writeCoverageInputs(t,
-		"mode: set\nfoo.go:1.1,2.2 4 1\nbar.go:3.1,4.2 4 0\n",
+		"mode: set\nfoo.go:1.1,2.2 39 1\nbar.go:3.1,4.2 1 0\n",
 		"# p\n\n<!-- coverage:START -->\nold\n<!-- coverage:END -->\n")
 	out, _ := withCapture(t, "", func() {
 		if _, err := coverageRun(profilePath, readmePath); err != nil {
@@ -34,11 +58,11 @@ func TestRunCoverageRewritesBadgeBetweenMarkers(t *testing.T) {
 		}
 	})
 	got, _ := os.ReadFile(readmePath)
-	want := "# p\n\n<!-- coverage:START -->\ncoverage: 50.0% of statements\n<!-- coverage:END -->\n"
+	want := "# p\n\n<!-- coverage:START -->\ncoverage: 97.5% of statements\n<!-- coverage:END -->\n"
 	if string(got) != want {
 		t.Errorf("readme =\n%q\nwant\n%q", got, want)
 	}
-	if !strings.Contains(out, "50.0%") {
+	if !strings.Contains(out, "97.5%") {
 		t.Errorf("stdout = %q, want the computed percent", out)
 	}
 }
@@ -61,7 +85,7 @@ func TestRunCoverageCreatesSectionWhenAbsent(t *testing.T) {
 
 func TestRunCoverageIdempotentSecondRunKeepsBytes(t *testing.T) {
 	profilePath, readmePath := writeCoverageInputs(t,
-		"mode: set\nfoo.go:1.1,2.2 4 1\nbar.go:3.1,4.2 4 0\n",
+		"mode: set\nfoo.go:1.1,2.2 39 1\nbar.go:3.1,4.2 1 0\n",
 		"<!-- coverage:START -->\nold\n<!-- coverage:END -->\n")
 	_, _ = withCapture(t, "", func() {
 		if _, err := coverageRun(profilePath, readmePath); err != nil {
@@ -120,7 +144,7 @@ func TestRunCoverageRejectsUnknownFlag(t *testing.T) {
 
 func TestRunCoverageFlagsDriveTheRun(t *testing.T) {
 	profilePath, readmePath := writeCoverageInputs(t,
-		"mode: set\nfoo.go:1.1,2.2 4 1\nbar.go:3.1,4.2 4 0\n",
+		"mode: set\nfoo.go:1.1,2.2 39 1\nbar.go:3.1,4.2 1 0\n",
 		"<!-- coverage:START -->\nold\n<!-- coverage:END -->\n")
 	_, _ = withCapture(t, "", func() {
 		if err := runCoverage(context.Background(), config.Defaults(),
@@ -129,7 +153,7 @@ func TestRunCoverageFlagsDriveTheRun(t *testing.T) {
 		}
 	})
 	got, _ := os.ReadFile(readmePath)
-	if !strings.Contains(string(got), "coverage: 50.0% of statements") {
+	if !strings.Contains(string(got), "coverage: 97.5% of statements") {
 		t.Errorf("readme badge not refreshed: %s", got)
 	}
 }

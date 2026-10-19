@@ -1,7 +1,7 @@
 # go-sudoku-solver
 
 <!-- coverage:START -->
-coverage: 0.0% of statements
+coverage: 95.2% of statements
 <!-- coverage:END -->
 
 ## Table of contents
