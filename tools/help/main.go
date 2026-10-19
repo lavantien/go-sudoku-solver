@@ -34,7 +34,7 @@ func render(path string) (string, error) {
 	}
 	var sb strings.Builder
 	sb.WriteString("Usage: make <target>\n\nTargets:\n")
-	for _, line := range strings.Split(string(b), "\n") {
+	for line := range strings.SplitSeq(string(b), "\n") {
 		line = strings.TrimSuffix(line, "\r")
 		if !targetLine.MatchString(line) {
 			continue
