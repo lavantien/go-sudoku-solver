@@ -56,7 +56,7 @@ RELEASE_FLAGS := -trimpath -ldflags "-s -w"
 
 help: ## show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\nTargets:\n"} \
-	      /^[a-zA-Z_-]+:.*##/ { printf "  %-15s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	      /^[a-zA-Z0-9_-]+:.*##/ { printf "  %-15s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 all: test ## run the full test suite (default)
 
@@ -100,6 +100,8 @@ sloc: ## enforce the 1000-line ceiling on every Go file
 fuzz: ## fuzz every target in the repo for FUZZ_TIME each
 	$(FZ) -run '^$$' -fuzz FuzzParseInput -fuzztime $(FUZZ_TIME) -parallel $(FUZZ_PARALLEL) ./internal/sudoku
 	$(FZ) -run '^$$' -fuzz FuzzSolverCore -fuzztime $(FUZZ_TIME) -parallel $(FUZZ_PARALLEL) ./internal/solver
+	$(FZ) -run '^$$' -fuzz FuzzPct -fuzztime $(FUZZ_TIME) -parallel $(FUZZ_PARALLEL) ./internal/coverbadge
+	$(FZ) -run '^$$' -fuzz FuzzRender -fuzztime $(FUZZ_TIME) -parallel $(FUZZ_PARALLEL) ./internal/coverbadge
 
 fuzz-one: ## fuzz one target: make fuzz-one PKG=./internal/sudoku FUZZ_TARGET=FuzzParseInput
 	$(FZ) -run '^$$' -fuzz $(FUZZ_TARGET) -fuzztime $(FUZZ_TIME) -parallel $(FUZZ_PARALLEL) $(PKG)
