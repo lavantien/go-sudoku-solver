@@ -6,7 +6,7 @@ import (
 )
 
 func TestRankProfileFailsOnlyTripling(t *testing.T) {
-	res := CheckProfile(RankProfile, 12, 40)
+	res := CheckProfile(RankProfile, 12, 40, 1e-9)
 	if len(res.Symmetry) != 0 || len(res.UnitRow) != 0 || len(res.Concavity) != 0 {
 		t.Errorf("rank profile: unexpected failures %+v", res)
 	}
@@ -20,14 +20,14 @@ func TestRankProfileFailsOnlyTripling(t *testing.T) {
 }
 
 func TestProductProfilePassesAll(t *testing.T) {
-	res := CheckProfile(ProductProfile, 12, 40)
+	res := CheckProfile(ProductProfile, 12, 40, 1e-9)
 	if len(res.Symmetry) != 0 || len(res.UnitRow) != 0 || len(res.Concavity) != 0 || len(res.Tripling) != 0 {
 		t.Errorf("product profile: unexpected failures %+v", res)
 	}
 }
 
 func TestGeometryProfilePassesAll(t *testing.T) {
-	res := CheckProfile(GeometryProfile, 12, 40)
+	res := CheckProfile(GeometryProfile, 12, 40, 1e-9)
 	if len(res.Symmetry) != 0 || len(res.UnitRow) != 0 || len(res.Concavity) != 0 || len(res.Tripling) != 0 {
 		t.Errorf("geometry profile: unexpected failures %+v", res)
 	}
@@ -49,7 +49,7 @@ func TestBrokenProfilesFailExpectedLaws(t *testing.T) {
 		}
 		return float64(a * b)
 	}
-	if res := CheckProfile(asym, 6, 12); len(res.Symmetry) == 0 {
+	if res := CheckProfile(asym, 6, 12, 1e-9); len(res.Symmetry) == 0 {
 		t.Errorf("asymmetric profile passed symmetry")
 	}
 	badUnit := func(a, b int) float64 {
@@ -58,17 +58,17 @@ func TestBrokenProfilesFailExpectedLaws(t *testing.T) {
 		}
 		return float64(a * b)
 	}
-	if res := CheckProfile(badUnit, 6, 12); len(res.UnitRow) == 0 {
+	if res := CheckProfile(badUnit, 6, 12, 1e-9); len(res.UnitRow) == 0 {
 		t.Errorf("bad unit row passed")
 	}
 	convex := func(a, b int) float64 { return float64(a) * float64(b*b) }
-	if res := CheckProfile(convex, 6, 12); len(res.Concavity) == 0 {
+	if res := CheckProfile(convex, 6, 12, 1e-9); len(res.Concavity) == 0 {
 		t.Errorf("convex profile passed concavity")
 	}
 }
 
 func TestRankProfileTriplingWitnessSetIsExact(t *testing.T) {
-	res := CheckProfile(RankProfile, 12, 40)
+	res := CheckProfile(RankProfile, 12, 40, 1e-9)
 	if len(res.Tripling) != 121 {
 		t.Fatalf("tripling witness count: got %d want 121, every (a,h) with 3h+a-1 <= 40 fires", len(res.Tripling))
 	}
@@ -80,7 +80,7 @@ func TestRankProfileTriplingWitnessSetIsExact(t *testing.T) {
 
 func TestConcavityWitnessCarriesTheNeighbourSum(t *testing.T) {
 	convex := func(a, b int) float64 { return float64(a) * float64(b*b) }
-	res := CheckProfile(convex, 6, 12)
+	res := CheckProfile(convex, 6, 12, 1e-9)
 	if len(res.Concavity) != 50 {
 		t.Fatalf("concavity witness count: got %d want 50 over a in 2..6 and b in 2..11", len(res.Concavity))
 	}
@@ -92,7 +92,7 @@ func TestConcavityWitnessCarriesTheNeighbourSum(t *testing.T) {
 
 func TestTriplingToleranceRejectsEquality(t *testing.T) {
 	boundary := func(a, b int) float64 { return float64(b) + 0.5 }
-	res := CheckProfile(boundary, 2, 4)
+	res := CheckProfile(boundary, 2, 4, 1e-9)
 	if len(res.Tripling) != 0 {
 		t.Fatalf("equality at the tripling boundary produced %d witnesses, want none below epsilon", len(res.Tripling))
 	}
