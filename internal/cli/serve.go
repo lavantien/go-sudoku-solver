@@ -7,6 +7,8 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/lavantien/go-sudoku-solver/internal/config"
 	"github.com/lavantien/go-sudoku-solver/internal/logging"
@@ -16,6 +18,10 @@ import (
 
 func init() {
 	Register(Command{Name: config.CmdServe, Usage: config.UsageServe, Run: runServe})
+}
+
+func serveContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 }
 
 func runServe(ctx context.Context, cfg config.Config, args []string) error {
@@ -35,12 +41,14 @@ func runServe(ctx context.Context, cfg config.Config, args []string) error {
 		logging.Fail(logger, "serve", err)
 		return err
 	}
+	sctx, stopSignals := serveContext(ctx)
+	defer stopSignals()
 	st, err := store.Open(cfg.DBPath)
 	if err != nil {
 		logging.Fail(logger, "serve", err, "db", cfg.DBPath)
 		return err
 	}
-	srv := server.New(ctx, cfg, st, logger)
+	srv := server.New(sctx, cfg, st, logger)
 	ln, err := net.Listen("tcp", cfg.Server.Addr)
 	if err != nil {
 		logging.Fail(logger, "serve", err, "addr", cfg.Server.Addr)
@@ -59,7 +67,7 @@ func runServe(ctx context.Context, cfg config.Config, args []string) error {
 		}
 		_ = st.Close()
 		return err
-	case <-ctx.Done():
+	case <-sctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {

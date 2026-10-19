@@ -110,6 +110,19 @@ func TestServeBootsOnChosenPortAndServesAPI(t *testing.T) {
 	}
 }
 
+func TestServeContextDerivesFromParentAndPropagatesCancel(t *testing.T) {
+	parent, cancel := context.WithCancel(context.Background())
+	sctx, stop := serveContext(parent)
+	if err := sctx.Err(); err != nil {
+		t.Fatalf("fresh serve ctx already done: %v", err)
+	}
+	cancel()
+	if err := sctx.Err(); err == nil {
+		t.Fatal("parent cancel must propagate into the serve ctx")
+	}
+	stop()
+}
+
 func TestServeRejectsBadFlagsAndBadAddr(t *testing.T) {
 	if err := runServe(context.Background(), config.Defaults(), []string{"--bogus"}); err == nil {
 		t.Error("unknown flag: got nil want error")
