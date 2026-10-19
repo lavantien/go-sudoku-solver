@@ -207,11 +207,11 @@ screenshots: build ## capture the UI and terminal journeys into project-pictures
 release: ## cross-compile stripped release binaries with zig cc into dist/release
 	@set -e; \
 	mkdir -p dist/release; \
-	for target in x86_64-linux-gnu x86_64-windows-gnu x86_64-macos aarch64-macos; do \
+	for target in x86_64-linux-gnu aarch64-linux-gnu x86_64-windows-gnu aarch64-windows-gnu; do \
 	  zigarch=$$(printf '%s' "$$target" | cut -d- -f1); \
 	  goarch=amd64; [ "$$zigarch" = aarch64 ] && goarch=arm64; \
 	  goos=linux; \
-	  case $$target in *windows*) goos=windows;; *macos*) goos=darwin;; esac; \
+	  case $$target in *windows*) goos=windows;; esac; \
 	  name=sudoku-v1.0-$$goos-$$goarch; [ $$goos = windows ] && name=$$name.exe; \
 	  echo "release: building $$name"; \
 	  CC="zig cc -target $$target" CXX="zig c++ -target $$target" CGO_ENABLED=1 GOOS=$$goos GOARCH=$$goarch \

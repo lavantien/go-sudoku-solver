@@ -16,3 +16,4 @@
 - the policy table optimizes step-efficiency, not wall-clock. The weights fit observed step counts, so the ordering prefers the racer expected to take fewer steps, which correlates with but does not guarantee the fastest finish on any single grid.
 - 17-clue generation is out of reach for the greedy digger. One random uniqueness-checked removal pass stalls well above target: at clue target 17, seeds 1 through 8 landed on 22, 24, 33, 32, 33, 34, 33, and 34 clues. The default target of 30 is where the digger lands reliably.
 - exact cover node visits cap at 1048576 by default (`SUDOKU_COVER_NODE_CAP`), so a pathological grid returns unsolved at the cap rather than running unbounded.
+- windows and linux binaries ship for amd64 and arm64. darwin builds from source with `go build`: the pinned zig cc carries only libSystem for darwin and no stubs for the system frameworks the go runtime links.
