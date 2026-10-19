@@ -59,19 +59,26 @@ const (
 )
 
 func main() {
-	pkgs := flag.String("packages", "", "comma-separated package dirs, e.g. internal/store")
-	tags := flag.String("tags", "", "build tags forwarded to go test")
-	parallel := flag.Int("parallel", 0, "concurrent mutant slots; 0 = min(8, GOMAXPROCS), capped at 8")
-	flag.Parse()
+	os.Exit(cli(os.Args[1:]))
+}
+
+func cli(args []string) int {
+	fs := flag.NewFlagSet("mutator", flag.ContinueOnError)
+	pkgs := fs.String("packages", "", "comma-separated package dirs, e.g. internal/store")
+	tags := fs.String("tags", "", "build tags forwarded to go test")
+	parallel := fs.Int("parallel", 0, "concurrent mutant slots; 0 = min(8, GOMAXPROCS), capped at 8")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
 	if *pkgs == "" {
 		fmt.Fprintln(os.Stderr, "-packages required")
-		os.Exit(2)
+		return 2
 	}
 	fmt.Fprintf(os.Stderr, "mutate: discovering mutants in %s\n", *pkgs)
 	rep, err := run(".", strings.Split(*pkgs, ","), *tags, *parallel)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
 	for _, m := range rep.survivors {
 		fmt.Printf("SURVIVED %s:%d %s -> %s\n", m.file, m.line, m.oldOp, m.newOp)
@@ -79,8 +86,9 @@ func main() {
 	fmt.Printf("slots=%d mutants=%d killed=%d invalid=%d survived=%d\n",
 		rep.slots, rep.mutants, rep.killed, rep.invalid, rep.survived)
 	if rep.survived > 0 {
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 func run(root string, pkgDirs []string, tags string, parallel int) (*report, error) {

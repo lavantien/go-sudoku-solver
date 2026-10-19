@@ -22,6 +22,82 @@ func fixtureModule(t *testing.T, files map[string]string) string {
 	return root
 }
 
+func TestCliExitCodes(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{"no args", nil, 2},
+		{"missing packages flag", []string{"-tags", "x"}, 2},
+		{"unknown flag", []string{"-nope"}, 2},
+		{"unparsable args", []string{"-parallel", "x", "-packages", "subject"}, 2},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if code := cli(tc.args); code != tc.want {
+				t.Errorf("cli(%v): got exit %d want %d", tc.args, code, tc.want)
+			}
+		})
+	}
+	root := fixtureModule(t, map[string]string{
+		"go.mod":               "module fixture\n\ngo 1.27\n",
+		"subject/target.go":    readFixture(t, "target_invalid.go"),
+		"subject/weak_test.go": readFixture(t, "weak_test.go"),
+	})
+	t.Chdir(root)
+	if code := cli([]string{"-packages", "subject", "-parallel", "1"}); code != 0 {
+		t.Errorf("invalid-only run: got exit %d want 0", code)
+	}
+	if code := cli([]string{"-packages", "gone"}); code != 1 {
+		t.Errorf("discovery failure: got exit %d want 1", code)
+	}
+}
+
+func TestDiscoverSkipsBlankEntriesAndReadFailures(t *testing.T) {
+	root := fixtureModule(t, map[string]string{
+		"go.mod":       "module fixture\n",
+		"subject/s.go": "package subject\n\nvar A = 1 < 2\n",
+	})
+	ms, err := discover(root, []string{"  ", "", "subject"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ms) != 1 {
+		t.Fatalf("mutants after blank entries: got %d want 1", len(ms))
+	}
+	if _, err := discoverFile(filepath.Join(root, "gone.go"), "gone.go"); err == nil {
+		t.Error("missing file: got nil want error")
+	}
+}
+
+func TestRunMutantRejectsUnwritableFile(t *testing.T) {
+	root := fixtureModule(t, map[string]string{"s.go": "package main\n\nvar A = 1 < 2\n"})
+	path := filepath.Join(root, "s.go")
+	if err := os.Chmod(path, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
+	got := runMutant(root, mutant{file: "s.go", offset: 24, oldOp: "<", newOp: ">=", line: 3}, "", "fixture")
+	if got != outcomeInvalid {
+		t.Errorf("readonly target: got %v want invalid", got)
+	}
+}
+
+func TestDiscoverReportsNonFlippableOperators(t *testing.T) {
+	root := fixtureModule(t, map[string]string{
+		"go.mod":       "module fixture\n",
+		"subject/s.go": "package subject\n\nvar A = 2 * 3\nvar B = 1 < 2\n",
+	})
+	ms, err := discover(root, []string{"subject"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ms) != 1 {
+		t.Fatalf("mutants: got %d want only the boundary flip", len(ms))
+	}
+}
+
 func TestRunErrorsWithoutGoMod(t *testing.T) {
 	root := fixtureModule(t, map[string]string{
 		"subject/s.go": "package subject\n\nfunc Less(a, b int) bool { return a < b }\n",
