@@ -17,9 +17,6 @@ import (
 )
 
 const (
-	evolveSeed     = uint64(20261019)
-	popSize        = 40
-	genBudget      = 400
 	eliteCount     = 2
 	tournamentK    = 3
 	minClues       = 20
@@ -61,18 +58,20 @@ type counters struct {
 }
 
 func main() {
-	logger := logging.New(config.Load().LogLevel)
-	if err := run(logger); err != nil {
+	cfg := config.Load()
+	logger := logging.New(cfg.LogLevel)
+	if err := run(logger, cfg); err != nil {
 		fmt.Fprintln(os.Stderr, "evolve:", err)
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger) error {
-	logging.Enter(logger, "evolve", "seed", evolveSeed, "pop", popSize, "gens", genBudget)
+func run(logger *slog.Logger, cfg config.Config) error {
+	evo := cfg.Evolve
+	logging.Enter(logger, "evolve", "seed", evo.Seed, "pop", evo.Population, "gens", evo.Generations)
 	start := time.Now()
-	rng := rand.New(rand.NewPCG(evolveSeed, evolveSeed))
-	pop, err := seedPopulation(logger)
+	rng := rand.New(rand.NewPCG(evo.Seed, evo.Seed))
+	pop, err := seedPopulation(logger, evo)
 	if err != nil {
 		return err
 	}
@@ -80,29 +79,29 @@ func run(logger *slog.Logger) error {
 	gens := 0
 	stop := "generation budget"
 	c := &counters{}
-	for gens < genBudget {
+	for gens < evo.Generations {
 		if time.Since(start) >= runCap {
 			stop = "wall clock cap"
 			break
 		}
 		logging.Enter(logger, "generation", "gen", gens+1, "best", pop[0].steps)
-		pop = nextGeneration(rng, pop, c)
+		pop = nextGeneration(rng, pop, c, evo.Population)
 		gens++
 		progress = append(progress, pop[0].steps)
 		logging.Exit(logger, "generation", "gen", gens, "best", pop[0].steps)
 	}
-	report(pop, progress, gens, stop, time.Since(start), c)
+	report(pop, progress, gens, stop, time.Since(start), c, evo)
 	logging.Exit(logger, "evolve", "gens", gens, "best", pop[0].steps)
 	return nil
 }
 
-func seedPopulation(logger *slog.Logger) ([]individual, error) {
-	logging.Enter(logger, "seed-population", "size", popSize)
-	pop := make([]individual, 0, popSize)
-	generated := popSize - 1
+func seedPopulation(logger *slog.Logger, evo config.EvolveConfig) ([]individual, error) {
+	logging.Enter(logger, "seed-population", "size", evo.Population)
+	pop := make([]individual, 0, evo.Population)
+	generated := evo.Population - 1
 	for i := range generated {
 		target := seedTargets[i%len(seedTargets)]
-		ind, err := generatedSeed(i, target)
+		ind, err := generatedSeed(i, target, evo.Seed)
 		if err != nil {
 			logging.Fail(logger, "seed-population", err, "target", target)
 			return nil, fmt.Errorf("seed-population: %w", err)
@@ -122,7 +121,7 @@ func seedPopulation(logger *slog.Logger) ([]individual, error) {
 	return pop, nil
 }
 
-func generatedSeed(i, target int) (individual, error) {
+func generatedSeed(i, target int, evolveSeed uint64) (individual, error) {
 	var lastErr error
 	for attempt := 0; attempt < seedAttempts; attempt++ {
 		res, err := puzzle.Generate(target, evolveSeed+uint64(i)*seedStride+uint64(attempt), solver.CountSolutions)
@@ -189,10 +188,10 @@ func isUnique(g sudoku.Grid) bool {
 	return solver.CountSolutions(g, 2) == 1
 }
 
-func nextGeneration(rng *rand.Rand, pop []individual, c *counters) []individual {
-	next := make([]individual, 0, popSize)
+func nextGeneration(rng *rand.Rand, pop []individual, c *counters, size int) []individual {
+	next := make([]individual, 0, size)
 	next = append(next, pop[:eliteCount]...)
-	for len(next) < popSize {
+	for len(next) < size {
 		a := tournament(rng, pop)
 		if rng.IntN(100) < crossoverPct {
 			b := tournament(rng, pop)
@@ -442,10 +441,10 @@ func sortPopulation(pop []individual) {
 	sort.SliceStable(pop, func(i, j int) bool { return pop[i].steps > pop[j].steps })
 }
 
-func report(pop []individual, progress []int, gens int, stop string, dur time.Duration, c *counters) {
+func report(pop []individual, progress []int, gens int, stop string, dur time.Duration, c *counters, evo config.EvolveConfig) {
 	best := pop[0]
 	fmt.Printf("evolve run: seed %d population %d generations %d elites %d tournament %d\n",
-		evolveSeed, popSize, genBudget, eliteCount, tournamentK)
+		evo.Seed, evo.Population, evo.Generations, eliteCount, tournamentK)
 	fmt.Printf("clue band %d..%d crossover %d%% mutation: relabel %d%% swap %d%% remove %d%% add %d%% redig attempts %d\n",
 		minClues, maxClues, crossoverPct, relabelPct, swapPct, removePct, 100-relabelPct-swapPct-removePct, redigAttempts)
 	fmt.Printf("stopped by %s after %d generations in %s\n", stop, gens, dur.Round(time.Millisecond))
