@@ -133,13 +133,34 @@ func TestShootFailsOnCanceledContext(t *testing.T) {
 
 func TestDetectBrowserErrorsWithoutAnyCandidate(t *testing.T) {
 	t.Setenv(config.BrowserEnv, "")
-	t.Setenv("PATH", t.TempDir())
-	t.Setenv("ProgramFiles", filepath.Join(t.TempDir(), "empty"))
-	t.Setenv("ProgramFiles(x86)", filepath.Join(t.TempDir(), "empty"))
-	t.Setenv("LOCALAPPDATA", filepath.Join(t.TempDir(), "empty"))
-	_, err := detectBrowser()
+	_, err := detectBrowser(nil)
 	if err == nil {
 		t.Error("no browser anywhere must produce a setup error")
+	}
+}
+
+func TestDetectBrowserErrorsWhenAllFixedCandidatesAreUnusable(t *testing.T) {
+	t.Setenv(config.BrowserEnv, "")
+	dir := t.TempDir()
+	_, err := detectBrowser([]string{filepath.Join(dir, "missing-chrome"), dir})
+	if err == nil {
+		t.Error("only missing or directory candidates must produce a setup error")
+	}
+}
+
+func TestDetectBrowserReturnsFirstExistingFixedCandidate(t *testing.T) {
+	t.Setenv(config.BrowserEnv, "")
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "chrome-shim")
+	if err := os.WriteFile(existing, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := detectBrowser([]string{filepath.Join(dir, "missing-chrome"), existing})
+	if err != nil {
+		t.Fatalf("existing fixed candidate must detect: %v", err)
+	}
+	if got != existing {
+		t.Errorf("detected browser = %q, want %q", got, existing)
 	}
 }
 

@@ -56,7 +56,7 @@ func runScreenshot(ctx context.Context, cfg config.Config, args []string) error 
 
 func screenshotRun(ctx context.Context, cfg config.Config, outDir string, logger *slog.Logger) error {
 	logging.Enter(logger, "screenshot.run", "out", outDir)
-	browser, err := detectBrowser()
+	browser, err := detectBrowser(browserCandidates())
 	if err != nil {
 		return err
 	}
@@ -159,14 +159,14 @@ func captureCLI(ctx context.Context, cfg config.Config) (string, error) {
 	return b.String(), nil
 }
 
-func detectBrowser() (string, error) {
+func detectBrowser(candidates []string) (string, error) {
 	if p := os.Getenv(config.BrowserEnv); p != "" {
 		if info, err := os.Stat(p); err != nil || info.IsDir() {
 			return "", fmt.Errorf("%s path %q is not an executable file", config.BrowserEnv, p)
 		}
 		return p, nil
 	}
-	for _, cand := range browserCandidates() {
+	for _, cand := range candidates {
 		if info, err := os.Stat(cand); err == nil && !info.IsDir() {
 			return cand, nil
 		}
