@@ -1,11 +1,63 @@
 package main
 
 import (
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+const reexecEnv = "MUTATOR_MAIN_REEXEC"
+
+func TestMain(m *testing.M) {
+	if os.Getenv(reexecEnv) == "1" {
+		main()
+	}
+	os.Exit(m.Run())
+}
+
+func TestMainRejectsMissingPackages(t *testing.T) {
+	cmd := exec.Command(os.Args[0], "-packages", "")
+	cmd.Env = append(os.Environ(), reexecEnv+"=1")
+	err := cmd.Run()
+	code := 0
+	if err != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf("run: %v", err)
+		}
+		code = exitErr.ExitCode()
+	}
+	if code != 2 {
+		t.Errorf("exit code: got %d want 2", code)
+	}
+}
+
+func TestRunReportsProgressEveryTenMutants(t *testing.T) {
+	var src, rows strings.Builder
+	src.WriteString("package subject\n\n")
+	rows.WriteString("package subject\n\nimport \"testing\"\n\nfunc TestBoundaries(t *testing.T) {\n\tpairs := []struct {\n\t\tf   func(int, int) bool\n\t\ta   int\n\t\tb   int\n\t\tout bool\n\t}{\n")
+	for i := range 10 {
+		name := "L" + string(rune('0'+i))
+		src.WriteString("func " + name + "(a, b int) bool { return a < b }\n")
+		rows.WriteString("\t\t{" + name + ", 1, 2, true}, {" + name + ", 2, 1, false},\n")
+	}
+	rows.WriteString("\t}\n\tfor _, p := range pairs {\n\t\tif p.f(p.a, p.b) != p.out {\n\t\t\tt.Fail()\n\t\t}\n\t}\n}\n")
+	root := fixtureModule(t, map[string]string{
+		"go.mod":            "module fixture\n\ngo 1.27\n",
+		"subject/b.go":      src.String(),
+		"subject/b_test.go": rows.String(),
+	})
+	rep, err := run(root, []string{"subject"}, "", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.mutants != 10 || rep.killed != 10 || rep.survived != 0 || rep.invalid != 0 {
+		t.Errorf("report: got %+v want 10 killed mutants", *rep)
+	}
+}
 
 func fixtureModule(t *testing.T, files map[string]string) string {
 	t.Helper()
@@ -51,6 +103,15 @@ func TestCliExitCodes(t *testing.T) {
 	}
 	if code := cli([]string{"-packages", "gone"}); code != 1 {
 		t.Errorf("discovery failure: got exit %d want 1", code)
+	}
+	survivor := fixtureModule(t, map[string]string{
+		"go.mod":            "module fixture\n\ngo 1.27\n",
+		"subject/s.go":      "package subject\n\nvar A = 1 < 2\n",
+		"subject/s_test.go": "package subject\n\nimport \"testing\"\n\nfunc TestNothing(t *testing.T) { _ = A }\n",
+	})
+	t.Chdir(survivor)
+	if code := cli([]string{"-packages", "subject", "-parallel", "1"}); code != 1 {
+		t.Errorf("survivor run: got exit %d want 1", code)
 	}
 }
 
