@@ -10,8 +10,6 @@ import (
 	"github.com/lavantien/go-sudoku-solver/internal/sudoku"
 )
 
-const annealScale = 1000
-
 func halvings(t0, tEnd int64) int {
 	n := 1
 	for t := t0; t > tEnd && n < 62; t >>= 1 {
@@ -123,7 +121,7 @@ func acceptUphill(rng *rand.Rand, temp int64, delta int) bool {
 	if temp > config.AnnealTempMax {
 		temp = config.AnnealTempMax
 	}
-	climb := delta * annealScale
+	climb := delta * config.AnnealScale
 	return rng.IntN(int(temp)+climb) < int(temp)
 }
 
@@ -148,8 +146,6 @@ func seedGrid(g sudoku.Grid, rng *rand.Rand) sudoku.Grid {
 	}
 	return cur
 }
-
-const annealRotateRate = 5
 
 func pickMove(cur sudoku.Grid, free [config.Size][]int, rng *rand.Rand) ([3]int, bool) {
 	var buf [config.Cells]int
@@ -180,7 +176,7 @@ func pickConflictedMove(conflicted []int, free [config.Size][]int, rng *rand.Ran
 		if i < 0 {
 			continue
 		}
-		if len(rowFree) >= 3 && rng.IntN(annealRotateRate) == 0 {
+		if len(rowFree) >= 3 && rng.IntN(config.AnnealRotateRate) == 0 {
 			k := rng.IntN(len(rowFree) - 1)
 			if k >= i {
 				k++

@@ -105,7 +105,7 @@ func TestAcceptUphillMatchesUncappedForLegalTemps(t *testing.T) {
 	uncapped := rand.New(rand.NewPCG(9, 9))
 	for _, temp := range []int64{1, 100, 4000, 1 << 40, config.AnnealTempMax} {
 		for delta := 1; delta <= 8; delta++ {
-			want := uncapped.IntN(int(temp)+delta*annealScale) < int(temp)
+			want := uncapped.IntN(int(temp)+delta*config.AnnealScale) < int(temp)
 			if got := acceptUphill(capped, temp, delta); got != want {
 				t.Fatalf("temp %d delta %d: got %v want the uncapped draw %v", temp, delta, got, want)
 			}
