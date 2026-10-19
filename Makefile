@@ -61,7 +61,7 @@ help: ## show this help
 all: test ## run the full test suite (default)
 
 build: ## build the sudoku binary into dist/
-	$(GO) build $(TAGS) -o $(BIN) ./cmd/sudoku
+	$(GO) build $(TAGS) $(RELEASE_FLAGS) -o $(BIN) ./cmd/sudoku
 
 test: ## run the full test suite
 	$(CGO_ENV) GOMEMLIMIT=$(MEMSOFT) go test $(TAGS) ./...
