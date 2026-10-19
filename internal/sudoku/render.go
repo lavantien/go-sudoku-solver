@@ -13,7 +13,7 @@ func RenderGrid(g Grid) string {
 		for c := range config.Size {
 			b.WriteString(strconv.Itoa(int(g[r*config.Size+c])))
 			if (c+1)%config.Box == 0 && c != config.Size-1 {
-				b.WriteByte('|')
+				b.WriteByte(config.GridColSep)
 			}
 		}
 		b.WriteByte('\n')

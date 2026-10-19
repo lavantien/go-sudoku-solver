@@ -19,6 +19,7 @@ const (
 	StepFmt           = "    Step count: %d\n"
 	TimeFmt           = "    Execution time: %f\n"
 	GridUnitRow       = "___ ___ ___"
+	GridColSep        = '|'
 	ErrNotEnoughLines = "not enough lines in input"
 	ErrLineLengthFmt  = "invalid line length: %d, expected 9"
 	ErrCharFmt        = "invalid character: %c"

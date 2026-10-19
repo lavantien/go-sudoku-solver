@@ -22,6 +22,7 @@ func TestContractConstants(t *testing.T) {
 		{"grid length", ErrGridLengthFmt, "invalid grid length: %d, expected 81"},
 		{"input error prefix", InputErrorPrefix, "Error reading input:"},
 		{"grid unit row", GridUnitRow, "___ ___ ___"},
+		{"grid col sep", string(GridColSep), "|"},
 		{"label propagate", LabelPropagate, "Constraint propagation with MRV backtracking"},
 		{"label cover", LabelCover, "Exact cover over the boolean incidence matrix"},
 		{"label anneal", LabelAnneal, "Simulated annealing with restart portfolio"},
