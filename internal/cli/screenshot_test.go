@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/lavantien/go-sudoku-solver/internal/config"
+	"github.com/lavantien/go-sudoku-solver/internal/logging"
 )
 
 var screenshotWantPictures = []string{
@@ -98,6 +99,58 @@ func TestPostSolveReportsTransportStatusAndIndentErrors(t *testing.T) {
 	t.Cleanup(ts2.Close)
 	if _, err := postSolve(ts2.URL); err == nil {
 		t.Error("malformed api solve body: got nil want error")
+	}
+}
+
+func TestShotterStepsFailOnCanceledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	s := &shotter{ctx: ctx, outDir: t.TempDir(), logger: logging.New("")}
+	steps := map[string]func() error{
+		"home and solve": func() error { return s.homeAndSolve("http://127.0.0.1:1") },
+		"generator":      func() error { return s.generator("http://127.0.0.1:1") },
+		"history":        func() error { return s.history("http://127.0.0.1:1") },
+		"run detail":     func() error { return s.runDetail("http://127.0.0.1:1") },
+		"api json":       func() error { return s.apiJSON("{}") },
+		"cli session":    func() error { return s.cliSession("$ solve") },
+		"curl session":   func() error { return s.curlSession("{}") },
+		"full capture":   func() error { return s.full(config.PictureHome) },
+	}
+	for name, step := range steps {
+		if err := step(); err == nil {
+			t.Errorf("%s must fail on a canceled context", name)
+		}
+	}
+}
+
+func TestShootFailsOnCanceledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := shoot(ctx, os.Args[0], "http://127.0.0.1:1", "{}", "report", t.TempDir(), logging.New("")); err == nil {
+		t.Error("shoot must fail on a canceled context")
+	}
+}
+
+func TestDetectBrowserErrorsWithoutAnyCandidate(t *testing.T) {
+	t.Setenv(config.BrowserEnv, "")
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("ProgramFiles", filepath.Join(t.TempDir(), "empty"))
+	t.Setenv("ProgramFiles(x86)", filepath.Join(t.TempDir(), "empty"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(t.TempDir(), "empty"))
+	_, err := detectBrowser()
+	if err == nil {
+		t.Error("no browser anywhere must produce a setup error")
+	}
+}
+
+func TestPostSolveReportsTruncatedBody(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", "100")
+		_, _ = w.Write([]byte("{}"))
+	}))
+	t.Cleanup(ts.Close)
+	if _, err := postSolve(ts.URL); err == nil {
+		t.Error("truncated api solve body: got nil want error")
 	}
 }
 

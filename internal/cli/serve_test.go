@@ -132,6 +132,23 @@ func TestServeRejectsEmptyAddrAndUnusableDB(t *testing.T) {
 	}
 }
 
+func TestServeShutdownTimesOutUnderStalledClient(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "serve.db")
+	addr, stop := bootServe(t, []string{"--" + config.FlagAddr, "127.0.0.1:0", "--" + config.FlagDB, db})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := "POST " + config.APISolvePath + " HTTP/1.1\r\nHost: stall\r\nContent-Length: 100\r\n\r\n{\"grid81\": \""
+	if _, err := conn.Write([]byte(head)); err != nil {
+		t.Fatal(err)
+	}
+	stop()
+	if err := conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestServeAddrLineFmtMatchesPrefix(t *testing.T) {
 	line := fmt.Sprintf(config.ServeAddrLineFmt, config.BinName, "127.0.0.1:1")
 	if !strings.HasPrefix(line, config.ServeAddrPrefix) {
