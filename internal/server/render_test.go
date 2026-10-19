@@ -82,7 +82,7 @@ func TestTemplatesParseFromEmbeddedFS(t *testing.T) {
 
 func openServerStore(t *testing.T) *store.Store {
 	t.Helper()
-	st, err := store.Open(filepath.Join(t.TempDir(), "render.db"))
+	st, err := store.Open(filepath.Join(t.TempDir(), "render.db"), config.DBBusyTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}

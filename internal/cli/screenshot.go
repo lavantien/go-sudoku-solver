@@ -96,7 +96,7 @@ func bootSite(ctx context.Context, cfg config.Config, logger *slog.Logger) (*sit
 	if err != nil {
 		return nil, err
 	}
-	st, err := store.Open(filepath.Join(tmpDir, "site.db"))
+	st, err := store.Open(filepath.Join(tmpDir, "site.db"), config.DBBusyTimeout)
 	if err != nil {
 		_ = os.RemoveAll(tmpDir)
 		return nil, err

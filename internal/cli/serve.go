@@ -43,7 +43,7 @@ func runServe(ctx context.Context, cfg config.Config, args []string) error {
 	}
 	sctx, stopSignals := serveContext(ctx)
 	defer stopSignals()
-	st, err := store.Open(cfg.DBPath)
+	st, err := store.Open(cfg.DBPath, config.DBBusyTimeout)
 	if err != nil {
 		logging.Fail(logger, "serve", err, "db", cfg.DBPath)
 		return err

@@ -164,7 +164,7 @@ func detectBrowser(t *testing.T) string {
 func bootInProcessServe(t *testing.T) string {
 	t.Helper()
 	db := filepath.Join(t.TempDir(), "ui.db")
-	st, err := store.Open(db)
+	st, err := store.Open(db, config.DBBusyTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}

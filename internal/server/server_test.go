@@ -84,7 +84,7 @@ type errorJSON struct {
 
 func openStore(t *testing.T, path string) *store.Store {
 	t.Helper()
-	st, err := store.Open(path)
+	st, err := store.Open(path, config.DBBusyTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}

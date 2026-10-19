@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	driverName    = "sqlite3"
-	busyTimeoutMS = 5000
+	driverName = "sqlite3"
 
 	createRuns       = `CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT NOT NULL, input81 TEXT NOT NULL, source TEXT NOT NULL)`
 	createRunMethods = `CREATE TABLE IF NOT EXISTS run_methods(run_id INTEGER NOT NULL, method TEXT NOT NULL, grid81 TEXT NOT NULL, steps INTEGER NOT NULL, time_ns INTEGER NOT NULL, solved INTEGER NOT NULL)`
@@ -73,14 +72,14 @@ type Store struct {
 	log *slog.Logger
 }
 
-func Open(path string) (*Store, error) {
+func Open(path string, busyTimeout time.Duration) (*Store, error) {
 	log := logging.New("")
-	logging.Enter(log, "store.open", "path", path)
+	logging.Enter(log, "store.open", "path", path, "busy_timeout", busyTimeout)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		logging.Fail(log, "store.open", err, "path", path)
 		return nil, fmt.Errorf("store open: %w", err)
 	}
-	dsn := fmt.Sprintf("%s?_busy_timeout=%d", path, busyTimeoutMS)
+	dsn := fmt.Sprintf("%s?_busy_timeout=%d", path, busyTimeout.Milliseconds())
 	db, err := sql.Open(driverName, dsn)
 	if err != nil {
 		logging.Fail(log, "store.open", err, "path", path)

@@ -23,7 +23,7 @@ func grid81(v byte) string {
 func openTemp(t *testing.T) *Store {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "nested", "sudoku.db")
-	s, err := Open(path)
+	s, err := Open(path, config.DBBusyTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,8 +114,8 @@ func TestOpenCreatesSchema(t *testing.T) {
 	if err := s.db.QueryRow("PRAGMA busy_timeout").Scan(&timeout); err != nil {
 		t.Fatal(err)
 	}
-	if timeout != busyTimeoutMS {
-		t.Errorf("busy_timeout = %d, want %d", timeout, busyTimeoutMS)
+	if timeout != int(config.DBBusyTimeout.Milliseconds()) {
+		t.Errorf("busy_timeout = %d, want %d", timeout, config.DBBusyTimeout.Milliseconds())
 	}
 }
 
@@ -256,7 +256,7 @@ func TestPuzzlesRoundTripAndPagination(t *testing.T) {
 }
 
 func TestCloseIdempotent(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "sudoku.db"))
+	s, err := Open(filepath.Join(t.TempDir(), "sudoku.db"), config.DBBusyTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +269,7 @@ func TestCloseIdempotent(t *testing.T) {
 }
 
 func TestCloseRacingOpsKeepsNoPanicAndPostCloseOpsError(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "race.db"))
+	s, err := Open(filepath.Join(t.TempDir(), "race.db"), config.DBBusyTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,17 +329,17 @@ func TestOpenRejectsUnusablePaths(t *testing.T) {
 	if err := os.WriteFile(blocker, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Open(filepath.Join(blocker, "sudoku.db")); err == nil {
+	if _, err := Open(filepath.Join(blocker, "sudoku.db"), config.DBBusyTimeout); err == nil {
 		t.Error("db path under a plain file: want error")
 	}
-	if _, err := Open(t.TempDir()); err == nil {
+	if _, err := Open(t.TempDir(), config.DBBusyTimeout); err == nil {
 		t.Error("directory as db path: want error")
 	}
 	junk := filepath.Join(t.TempDir(), "junk.db")
 	if err := os.WriteFile(junk, []byte("this is not sqlite"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Open(junk); err == nil {
+	if _, err := Open(junk, config.DBBusyTimeout); err == nil {
 		t.Error("non-database file as db path: want error")
 	}
 }
