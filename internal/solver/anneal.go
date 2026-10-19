@@ -74,10 +74,7 @@ func annealRestart(ctx context.Context, g sudoku.Grid, c config.Config, restart 
 		if ctx.Err() != nil {
 			return bank, bankCost
 		}
-		temp := t0 >> uint(clock/span)
-		if temp < c.Anneal.TempEnd {
-			temp = c.Anneal.TempEnd
-		}
+		temp := tempAt(t0, c.Anneal.TempEnd, clock, span)
 		clock++
 		move, ok := pickMove(cur, free, rng)
 		if !ok {
@@ -102,6 +99,14 @@ func annealRestart(ctx context.Context, g sudoku.Grid, c config.Config, restart 
 		}
 	}
 	return bank, bankCost
+}
+
+func tempAt(t0, tEnd int64, clock, span int) int64 {
+	t := t0 >> uint(clock/span)
+	if t < tEnd {
+		return tEnd
+	}
+	return t
 }
 
 func seedGrid(g sudoku.Grid, rng *rand.Rand) sudoku.Grid {

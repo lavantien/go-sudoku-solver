@@ -200,3 +200,82 @@ func TestOracleRejectsNonPow2(t *testing.T) {
 		t.Errorf("valid input rejected")
 	}
 }
+
+func TestBitMatrixWordIndexingPastSixtyFour(t *testing.T) {
+	m := NewBitMatrix(3, 65)
+	m.Set(1, 64)
+	if !m.Get(1, 64) {
+		t.Errorf("set bit in the second word of row 1 reads back false")
+	}
+	if m.Get(0, 64) {
+		t.Errorf("bit leaked into row 0")
+	}
+	if m.Get(1, 0) {
+		t.Errorf("bit leaked into the first word of row 1")
+	}
+	m.Set(2, 0)
+	if !m.Get(2, 0) || m.Get(1, 0) {
+		t.Errorf("row 2 first word misplaced")
+	}
+}
+
+func TestBooleanMulWideRowsLandInTheRightWords(t *testing.T) {
+	a := NewBitMatrix(2, 2)
+	a.Set(0, 0)
+	a.Set(1, 1)
+	b := NewBitMatrix(2, 65)
+	b.Set(0, 64)
+	b.Set(1, 63)
+	got := BooleanMul(a, b)
+	if !got.Get(0, 64) {
+		t.Errorf("row 0 lost its word-1 bit")
+	}
+	if !got.Get(1, 63) {
+		t.Errorf("row 1 lost its word-0 bit")
+	}
+	if got.Get(1, 64) {
+		t.Errorf("row 1 gained a bit that only b row 0 carries")
+	}
+	if got.Get(0, 63) {
+		t.Errorf("row 0 gained a bit that only b row 1 carries")
+	}
+}
+
+func TestRandomDensePositiveRangeHitsBothEnds(t *testing.T) {
+	rng := rand.New(rand.NewPCG(424242, 424242))
+	d := RandomDense(8, rng, 3, 7)
+	lo, hi := 7.0, 3.0
+	for _, v := range d.Data {
+		if v < 3 || v > 7 || v != math.Trunc(v) {
+			t.Fatalf("value out of range: %v", v)
+		}
+		if v < lo {
+			lo = v
+		}
+		if v > hi {
+			hi = v
+		}
+	}
+	if lo != 3 || hi != 7 {
+		t.Fatalf("range coverage: min %v max %v, want both extremes 3 and 7 reached", lo, hi)
+	}
+}
+
+func TestMustSamePanicsOnEachAloneCondition(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		a, b Dense
+	}{
+		{"n differs, len equal", Dense{N: 2, Data: make([]float64, 4)}, Dense{N: 4, Data: make([]float64, 4)}},
+		{"n equal, len differs", Dense{N: 2, Data: make([]float64, 4)}, Dense{N: 2, Data: make([]float64, 8)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("%s did not panic", tc.name)
+				}
+			}()
+			Add(tc.a, tc.b)
+		})
+	}
+}

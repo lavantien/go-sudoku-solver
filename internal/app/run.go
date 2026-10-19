@@ -38,9 +38,6 @@ func solveMethod(ctx context.Context, cfg config.Config, m solver.Method, g sudo
 		return m.Fn(ctx, g, cfg)
 	}
 	order := policy.ResolveOrder(g)
-	if len(order) == 0 {
-		order = policy.FixedOrder()
-	}
 	racers := make([]solver.Solver, 0, len(order))
 	for _, id := range order {
 		if r, ok := solver.ByID(id); ok {

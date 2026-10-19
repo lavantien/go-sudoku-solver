@@ -185,6 +185,8 @@ func TestValidate(t *testing.T) {
 		{"train seeds zero", mut(func(c *Config) { c.Train.Seeds = 0 })},
 		{"empty addr", mut(func(c *Config) { c.Server.Addr = "" })},
 		{"zero read timeout", mut(func(c *Config) { c.Server.ReadTimeout = 0 })},
+		{"zero write timeout", mut(func(c *Config) { c.Server.WriteTimeout = 0 })},
+		{"zero idle timeout", mut(func(c *Config) { c.Server.IdleTimeout = 0 })},
 		{"zero shutdown timeout", mut(func(c *Config) { c.Server.ShutdownTimeout = 0 })},
 		{"empty db path", mut(func(c *Config) { c.DBPath = "" })},
 		{"bad log level", mut(func(c *Config) { c.LogLevel = "loud" })},

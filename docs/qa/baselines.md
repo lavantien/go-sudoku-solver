@@ -8,6 +8,8 @@ Pinned fixtures, step semantics, constants, and golden rules the test suite reli
 - `Unsolvable81`: two 5s in row 1, the minimal immediate-conflict input for the unsolved path.
 - `Anneal81`: derived on 2026-10-19 from the reference solution by deterministic cell removal, 40 clues, generator kept at `playground/make_fixture`, full origin and tuning evidence in [notes/anneal-tuning.md](notes/anneal-tuning.md).
 - `SampleExtreme81` and `SampleExtremeSolution81`: evolved on 2026-10-19 by `tools/evolve` under `make evolve`, deterministic seed 20261019, winner at 21 clues and 4646 propagate steps, full run ledger in [notes/evolve-run.md](notes/evolve-run.md).
+- `internal/puzzle/testdata/golden-shuffle-seed-11.txt` and `golden-shuffle-seed-12.txt`: the exact full grids `shuffledFullGrid` produces for PCG seeds 11 and 12, captured from the reference generator on 2026-10-19 after its validity properties were pinned independently, so the transpose coin and the whole shuffle choreography stay reproducible.
+- `multiSolutionGrid81` (`internal/solver/anneal_tails_test.go`): a valid full grid derived on 2026-10-19 from `Sample81` by blanking two givens and re-solving with `Propagate`, the first re-solved grid carrying two disjoint deadly rectangles (rows 2-3 against cols 0-1 and cols 6-7). Blanking both rectangles leaves exactly 4 solutions, which pins `CountSolutions` exact count and its limit caps.
 
 ## step semantics
 

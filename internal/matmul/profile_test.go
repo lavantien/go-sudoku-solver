@@ -67,6 +67,37 @@ func TestBrokenProfilesFailExpectedLaws(t *testing.T) {
 	}
 }
 
+func TestRankProfileTriplingWitnessSetIsExact(t *testing.T) {
+	res := CheckProfile(RankProfile, 12, 40)
+	if len(res.Tripling) != 121 {
+		t.Fatalf("tripling witness count: got %d want 121, every (a,h) with 3h+a-1 <= 40 fires", len(res.Tripling))
+	}
+	last := res.Tripling[120]
+	if last.A != 12 || last.H != 9 || last.B != 38 || last.P != 49 || last.Q != 60 {
+		t.Fatalf("last witness: got %+v want a=12 h=9 b=38 P=49 Q=60", last)
+	}
+}
+
+func TestConcavityWitnessCarriesTheNeighbourSum(t *testing.T) {
+	convex := func(a, b int) float64 { return float64(a) * float64(b*b) }
+	res := CheckProfile(convex, 6, 12)
+	if len(res.Concavity) != 50 {
+		t.Fatalf("concavity witness count: got %d want 50 over a in 2..6 and b in 2..11", len(res.Concavity))
+	}
+	w := res.Concavity[0]
+	if w.A != 2 || w.B != 2 || w.P != 16 || w.Q != 20 {
+		t.Fatalf("first witness: got %+v want a=2 b=2 P=16 Q=20 with Q = p(2,3)+p(2,1)", w)
+	}
+}
+
+func TestTriplingToleranceRejectsEquality(t *testing.T) {
+	boundary := func(a, b int) float64 { return float64(b) + 0.5 }
+	res := CheckProfile(boundary, 2, 4)
+	if len(res.Tripling) != 0 {
+		t.Fatalf("equality at the tripling boundary produced %d witnesses, want none below epsilon", len(res.Tripling))
+	}
+}
+
 func TestCapTLadderPinsChapterValues(t *testing.T) {
 	cases := []struct {
 		a    int

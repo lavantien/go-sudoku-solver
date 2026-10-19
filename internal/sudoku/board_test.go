@@ -187,4 +187,8 @@ func TestMRVCell(t *testing.T) {
 	if got := MRVCell(g); got != 7 {
 		t.Errorf("after fill: got %d want 7", got)
 	}
+	var allEmpty Grid
+	if got := MRVCell(allEmpty); got != 0 {
+		t.Errorf("all-empty grid: got %d want 0, every cell offers the full candidate count", got)
+	}
 }
