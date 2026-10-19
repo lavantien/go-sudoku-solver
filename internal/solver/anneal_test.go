@@ -90,8 +90,8 @@ func TestAnnealFullyGivenInvalidGridExitsFastUnsolvedDeterministic(t *testing.T)
 	if got.Solved {
 		t.Errorf("fully given invalid grid reported solved")
 	}
-	if wall >= 2*time.Second {
-		t.Errorf("wall: got %v want under 2s, unswappable rounds must not burn the budget", wall)
+	if wall >= 250*time.Millisecond {
+		t.Errorf("wall: got %v want under 250ms, unswappable rounds must not burn the budget", wall)
 	}
 	again := Anneal(context.Background(), in, config.Defaults())
 	if again.Grid != got.Grid || again.Steps != got.Steps {
