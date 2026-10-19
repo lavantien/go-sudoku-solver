@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -282,20 +281,10 @@ func goTestCmd(ctx context.Context, moduleRoot, pkg, tags string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = moduleRoot
 	cmd.Env = os.Environ()
+	setNewProcessGroup(cmd)
 	cmd.Cancel = func() error { return killTree(cmd.Process.Pid) }
 	cmd.WaitDelay = killTreeGrace
 	return cmd
-}
-
-func killTree(pid int) error {
-	p := strconv.Itoa(pid)
-	if runtime.GOOS == "windows" {
-		return exec.Command("taskkill", "/T", "/F", "/PID", p).Run()
-	}
-	if err := exec.Command("pkill", "-9", "-P", p).Run(); err != nil {
-		return err
-	}
-	return exec.Command("kill", "-9", p).Run()
 }
 
 func pkgFor(modulePath, relFile string) string {
