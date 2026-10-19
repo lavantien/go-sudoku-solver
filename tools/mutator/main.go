@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -31,6 +32,7 @@ var flips = map[string]string{
 const (
 	maxParallelSlots = 8
 	testTimeout      = 3 * time.Minute
+	killTreeGrace    = 10 * time.Second
 )
 
 type mutant struct {
@@ -166,7 +168,7 @@ func runMutant(shadow string, m mutant, tags, modulePath string) testOutcome {
 	if err := os.WriteFile(dst, mutated, 0o644); err != nil {
 		return outcomeInvalid
 	}
-	outcome := testPkg(shadow, pkgFor(modulePath, m.file), tags)
+	outcome := testPkg(shadow, pkgFor(modulePath, m.file), tags, testTimeout)
 	_ = os.WriteFile(dst, orig, 0o644)
 	return outcome
 }
@@ -255,17 +257,19 @@ func replaceAt(b []byte, offset int, oldOp, newOp string) []byte {
 	return out
 }
 
-func testPkg(moduleRoot, pkg, tags string) testOutcome {
+func testPkg(moduleRoot, pkg, tags string, timeout time.Duration) testOutcome {
 	args := []string{"test", "-run", "^Test"}
 	if tags != "" {
 		args = append(args, "-tags", tags)
 	}
 	args = append(args, pkg)
-	ctx, cancelCtx := context.WithTimeout(context.Background(), testTimeout)
+	ctx, cancelCtx := context.WithTimeout(context.Background(), timeout)
 	defer cancelCtx()
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = moduleRoot
 	cmd.Env = os.Environ()
+	cmd.Cancel = func() error { return killTree(cmd.Process.Pid) }
+	cmd.WaitDelay = killTreeGrace
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
@@ -276,6 +280,17 @@ func testPkg(moduleRoot, pkg, tags string) testOutcome {
 		return outcomeKilled
 	}
 	return outcomeSurvived
+}
+
+func killTree(pid int) error {
+	p := strconv.Itoa(pid)
+	if runtime.GOOS == "windows" {
+		return exec.Command("taskkill", "/T", "/F", "/PID", p).Run()
+	}
+	if err := exec.Command("pkill", "-9", "-P", p).Run(); err != nil {
+		return err
+	}
+	return exec.Command("kill", "-9", p).Run()
 }
 
 func pkgFor(modulePath, relFile string) string {

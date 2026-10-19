@@ -1,2 +1,5 @@
 [files]
 extend-exclude = ["web/static/*.min.js", "docs/qa/notes/**"]
+
+[default.extend-words]
+FO = "FO"
