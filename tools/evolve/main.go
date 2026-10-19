@@ -16,23 +16,6 @@ import (
 	"github.com/lavantien/go-sudoku-solver/internal/sudoku"
 )
 
-const (
-	eliteCount     = 2
-	tournamentK    = 3
-	minClues       = 20
-	maxClues       = 40
-	crossoverPct   = 10
-	relabelPct     = 25
-	swapPct        = 30
-	removePct      = 35
-	redigAttempts  = 12
-	evalCap        = 20 * time.Second
-	runCap         = 10 * time.Minute
-	progressStride = 40
-	seedStride     = 104729
-	seedAttempts   = 8
-)
-
 var seedTargets = [9]int{20, 21, 22, 23, 24, 25, 26, 28, 32}
 
 type individual struct {
@@ -84,12 +67,12 @@ func run(logger *slog.Logger, cfg config.Config) error {
 	stop := "generation budget"
 	c := &counters{}
 	for gens < evo.Generations {
-		if time.Since(start) >= runCap {
+		if time.Since(start) >= evo.RunCap {
 			stop = "wall clock cap"
 			break
 		}
 		logging.Enter(logger, "generation", "gen", gens+1, "best", pop[0].steps)
-		pop = nextGeneration(rng, pop, c, evo.Population)
+		pop = nextGeneration(rng, pop, c, evo)
 		gens++
 		progress = append(progress, pop[0].steps)
 		logging.Exit(logger, "generation", "gen", gens, "best", pop[0].steps)
@@ -105,7 +88,7 @@ func seedPopulation(logger *slog.Logger, evo config.EvolveConfig) ([]individual,
 	generated := evo.Population - 1
 	for i := range generated {
 		target := seedTargets[i%len(seedTargets)]
-		ind, err := generatedSeed(i, target, evo.Seed)
+		ind, err := generatedSeed(i, target, evo)
 		if err != nil {
 			logging.Fail(logger, "seed-population", err, "target", target)
 			return nil, fmt.Errorf("seed-population: %w", err)
@@ -113,7 +96,7 @@ func seedPopulation(logger *slog.Logger, evo config.EvolveConfig) ([]individual,
 		logger.Debug("seeded", "i", i, "target", target, "clues", ind.clues, "steps", ind.steps)
 		pop = append(pop, ind)
 	}
-	legacy, err := legacyIndividual()
+	legacy, err := legacyIndividual(evo)
 	if err != nil {
 		logging.Fail(logger, "seed-population", err)
 		return nil, fmt.Errorf("seed-population: %w", err)
@@ -125,15 +108,15 @@ func seedPopulation(logger *slog.Logger, evo config.EvolveConfig) ([]individual,
 	return pop, nil
 }
 
-func generatedSeed(i, target int, evolveSeed uint64) (individual, error) {
+func generatedSeed(i, target int, evo config.EvolveConfig) (individual, error) {
 	var lastErr error
-	for attempt := 0; attempt < seedAttempts; attempt++ {
-		res, err := puzzle.Generate(target, evolveSeed+uint64(i)*seedStride+uint64(attempt), solver.CountSolutions)
+	for attempt := 0; attempt < evo.SeedAttempts; attempt++ {
+		res, err := puzzle.Generate(target, evo.Seed+uint64(i)*uint64(evo.SeedStride)+uint64(attempt), solver.CountSolutions)
 		if err != nil {
 			lastErr = fmt.Errorf("seed %d attempt %d: %w", i, attempt, err)
 			continue
 		}
-		if ind, ok := evaluate(res.Grid); ok {
+		if ind, ok := evaluate(res.Grid, evo); ok {
 			return ind, nil
 		}
 		lastErr = fmt.Errorf("seed %d attempt %d: generated grid rejected", i, attempt)
@@ -141,7 +124,7 @@ func generatedSeed(i, target int, evolveSeed uint64) (individual, error) {
 	return individual{}, lastErr
 }
 
-func legacyIndividual() (individual, error) {
+func legacyIndividual(evo config.EvolveConfig) (individual, error) {
 	g, err := sudoku.Parse81(puzzle.Sample81)
 	if err != nil {
 		return individual{}, fmt.Errorf("legacy sample: %w", err)
@@ -151,35 +134,35 @@ func legacyIndividual() (individual, error) {
 		return individual{}, fmt.Errorf("legacy sample unsolved by the engine")
 	}
 	for i := range g {
-		if cluesOf(g) >= minClues {
+		if cluesOf(g) >= evo.MinClues {
 			break
 		}
 		if g[i] == config.EmptyDigit {
 			g[i] = res.Grid[i]
 		}
 	}
-	ind, ok := evaluate(g)
+	ind, ok := evaluate(g, evo)
 	if !ok {
 		return individual{}, fmt.Errorf("topped-up legacy sample rejected")
 	}
 	return ind, nil
 }
 
-func evaluate(g sudoku.Grid) (individual, bool) {
-	if n := cluesOf(g); n < minClues || n > maxClues {
+func evaluate(g sudoku.Grid, evo config.EvolveConfig) (individual, bool) {
+	if n := cluesOf(g); n < evo.MinClues || n > evo.MaxClues {
 		return individual{}, false
 	}
 	if !isUnique(g) {
 		return individual{}, false
 	}
-	return evaluateSolve(g)
+	return evaluateSolve(g, evo)
 }
 
-func evaluateSolve(g sudoku.Grid) (individual, bool) {
-	if n := cluesOf(g); n < minClues || n > maxClues {
+func evaluateSolve(g sudoku.Grid, evo config.EvolveConfig) (individual, bool) {
+	if n := cluesOf(g); n < evo.MinClues || n > evo.MaxClues {
 		return individual{}, false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), evalCap)
+	ctx, cancel := context.WithTimeout(context.Background(), evo.EvalCap)
 	defer cancel()
 	res := solver.Propagate(ctx, g, config.Defaults())
 	if !res.Solved {
@@ -192,25 +175,25 @@ func isUnique(g sudoku.Grid) bool {
 	return solver.CountSolutions(g, 2) == 1
 }
 
-func nextGeneration(rng *rand.Rand, pop []individual, c *counters, size int) []individual {
-	next := make([]individual, 0, size)
-	next = append(next, pop[:eliteCount]...)
-	for len(next) < size {
-		a := tournament(rng, pop)
-		if rng.IntN(100) < crossoverPct {
-			b := tournament(rng, pop)
-			next = append(next, crossoverChild(rng, a, b, c))
+func nextGeneration(rng *rand.Rand, pop []individual, c *counters, evo config.EvolveConfig) []individual {
+	next := make([]individual, 0, evo.Population)
+	next = append(next, pop[:evo.EliteCount]...)
+	for len(next) < evo.Population {
+		a := tournament(rng, pop, evo.TournamentK)
+		if rng.IntN(100) < evo.CrossoverPct {
+			b := tournament(rng, pop, evo.TournamentK)
+			next = append(next, crossoverChild(rng, a, b, c, evo))
 			continue
 		}
-		next = append(next, mutateChild(rng, a, c))
+		next = append(next, mutateChild(rng, a, c, evo))
 	}
 	sortPopulation(next)
 	return next
 }
 
-func tournament(rng *rand.Rand, pop []individual) individual {
+func tournament(rng *rand.Rand, pop []individual, k int) individual {
 	best := pop[rng.IntN(len(pop))]
-	for range tournamentK - 1 {
+	for range k - 1 {
 		challenger := pop[rng.IntN(len(pop))]
 		if challenger.steps > best.steps {
 			best = challenger
@@ -219,33 +202,33 @@ func tournament(rng *rand.Rand, pop []individual) individual {
 	return best
 }
 
-func mutateChild(rng *rand.Rand, parent individual, c *counters) individual {
+func mutateChild(rng *rand.Rand, parent individual, c *counters, evo config.EvolveConfig) individual {
 	draw := rng.IntN(100)
 	switch {
-	case draw < relabelPct:
+	case draw < evo.RelabelPct:
 		c.relabelAttempt++
-		child, ok := evaluateSolve(relabelGivens(rng, parent.grid))
+		child, ok := evaluateSolve(relabelGivens(rng, parent.grid), evo)
 		if ok {
 			c.relabelAccept++
 			return child
 		}
-	case draw < relabelPct+swapPct:
+	case draw < evo.RelabelPct+evo.SwapPct:
 		c.swapAttempt++
-		child, ok := swapCandidate(rng, parent, &c.swapRepair)
+		child, ok := swapCandidate(rng, parent, &c.swapRepair, evo)
 		if ok {
 			c.swapAccept++
 			return child
 		}
-	case draw < relabelPct+swapPct+removePct:
+	case draw < evo.RelabelPct+evo.SwapPct+evo.RemovePct:
 		c.removeAttempt++
-		child, ok := removeCandidate(rng, parent, &c.removeRepair)
+		child, ok := removeCandidate(rng, parent, &c.removeRepair, evo)
 		if ok {
 			c.removeAccept++
 			return child
 		}
 	default:
 		c.addAttempt++
-		child, ok := evaluateSolve(addClue(rng, parent.grid, parent.sol))
+		child, ok := evaluateSolve(addClue(rng, parent.grid, parent.sol, evo.MaxClues), evo)
 		if ok {
 			c.addAccept++
 			return child
@@ -254,32 +237,32 @@ func mutateChild(rng *rand.Rand, parent individual, c *counters) individual {
 	return parent
 }
 
-func swapCandidate(rng *rand.Rand, parent individual, repair *int) (individual, bool) {
+func swapCandidate(rng *rand.Rand, parent individual, repair *int, evo config.EvolveConfig) (individual, bool) {
 	candidate := swapWithinBand(rng, parent.grid)
 	if candidate == parent.grid {
 		return parent, false
 	}
 	if isUnique(candidate) {
-		return evaluateSolve(candidate)
+		return evaluateSolve(candidate, evo)
 	}
 	*repair++
-	return repairedChild(rng, candidate, parent.clues)
+	return repairedChild(rng, candidate, parent.clues, evo)
 }
 
-func removeCandidate(rng *rand.Rand, parent individual, repair *int) (individual, bool) {
-	candidate := removeClue(rng, parent.grid)
+func removeCandidate(rng *rand.Rand, parent individual, repair *int, evo config.EvolveConfig) (individual, bool) {
+	candidate := removeClue(rng, parent.grid, evo.MinClues)
 	if candidate == parent.grid {
 		return parent, false
 	}
 	if isUnique(candidate) {
-		return evaluateSolve(candidate)
+		return evaluateSolve(candidate, evo)
 	}
 	*repair++
-	return repairedChild(rng, candidate, parent.clues)
+	return repairedChild(rng, candidate, parent.clues, evo)
 }
 
-func repairedChild(rng *rand.Rand, ruined sudoku.Grid, targetClues int) (individual, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), evalCap)
+func repairedChild(rng *rand.Rand, ruined sudoku.Grid, targetClues int, evo config.EvolveConfig) (individual, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), evo.EvalCap)
 	defer cancel()
 	res := solver.Propagate(ctx, ruined, config.Defaults())
 	if !res.Solved {
@@ -288,13 +271,13 @@ func repairedChild(rng *rand.Rand, ruined sudoku.Grid, targetClues int) (individ
 	out := ruined
 	for !isUnique(out) {
 		empties := emptyCells(out)
-		if len(empties) == 0 || cluesOf(out) >= maxClues {
+		if len(empties) == 0 || cluesOf(out) >= evo.MaxClues {
 			return individual{}, false
 		}
 		at := empties[rng.IntN(len(empties))]
 		out[at] = res.Grid[at]
 	}
-	for range redigAttempts {
+	for range evo.RedigAttempts {
 		if cluesOf(out) <= targetClues {
 			break
 		}
@@ -306,10 +289,10 @@ func repairedChild(rng *rand.Rand, ruined sudoku.Grid, targetClues int) (individ
 			out[i] = keep
 		}
 	}
-	return evaluateSolve(out)
+	return evaluateSolve(out, evo)
 }
 
-func crossoverChild(rng *rand.Rand, a, b individual, c *counters) individual {
+func crossoverChild(rng *rand.Rand, a, b individual, c *counters, evo config.EvolveConfig) individual {
 	c.crossoverAttempt++
 	lead, other := a, b
 	if b.steps > a.steps {
@@ -328,14 +311,14 @@ func crossoverChild(rng *rand.Rand, a, b individual, c *counters) individual {
 			child[i] = lv
 		}
 	}
-	for cluesOf(child) > maxClues {
+	for cluesOf(child) > evo.MaxClues {
 		givens := givenCells(child)
 		child[givens[rng.IntN(len(givens))]] = config.EmptyDigit
 	}
 	if child == lead.grid {
 		return lead
 	}
-	if child, ok := evaluate(child); ok {
+	if child, ok := evaluate(child, evo); ok {
 		c.crossoverAccept++
 		return child
 	}
@@ -390,7 +373,7 @@ func placeableExcept(g sudoku.Grid, at, except int, d uint8) bool {
 	return true
 }
 
-func removeClue(rng *rand.Rand, g sudoku.Grid) sudoku.Grid {
+func removeClue(rng *rand.Rand, g sudoku.Grid, minClues int) sudoku.Grid {
 	if cluesOf(g) <= minClues {
 		return g
 	}
@@ -400,7 +383,7 @@ func removeClue(rng *rand.Rand, g sudoku.Grid) sudoku.Grid {
 	return out
 }
 
-func addClue(rng *rand.Rand, g, sol sudoku.Grid) sudoku.Grid {
+func addClue(rng *rand.Rand, g, sol sudoku.Grid, maxClues int) sudoku.Grid {
 	if cluesOf(g) >= maxClues {
 		return g
 	}
@@ -448,9 +431,9 @@ func sortPopulation(pop []individual) {
 func report(pop []individual, progress []int, gens int, stop string, dur time.Duration, c *counters, evo config.EvolveConfig) {
 	best := pop[0]
 	fmt.Printf("evolve run: seed %d population %d generations %d elites %d tournament %d\n",
-		evo.Seed, evo.Population, evo.Generations, eliteCount, tournamentK)
+		evo.Seed, evo.Population, evo.Generations, evo.EliteCount, evo.TournamentK)
 	fmt.Printf("clue band %d..%d crossover %d%% mutation: relabel %d%% swap %d%% remove %d%% add %d%% redig attempts %d\n",
-		minClues, maxClues, crossoverPct, relabelPct, swapPct, removePct, 100-relabelPct-swapPct-removePct, redigAttempts)
+		evo.MinClues, evo.MaxClues, evo.CrossoverPct, evo.RelabelPct, evo.SwapPct, evo.RemovePct, 100-evo.RelabelPct-evo.SwapPct-evo.RemovePct, evo.RedigAttempts)
 	fmt.Printf("stopped by %s after %d generations in %s\n", stop, gens, dur.Round(time.Millisecond))
 	fmt.Printf("operators accepted/attempted: crossover %d/%d relabel %d/%d swap %d/%d remove %d/%d add %d/%d repairs swap %d remove %d\n",
 		c.crossoverAccept, c.crossoverAttempt,
@@ -461,7 +444,7 @@ func report(pop []individual, progress []int, gens int, stop string, dur time.Du
 		c.swapRepair, c.removeRepair)
 	fmt.Println("best steps by generation:")
 	for i, s := range progress {
-		if i == 0 || i == len(progress)-1 || i%progressStride == 0 {
+		if i == 0 || i == len(progress)-1 || i%evo.ProgressStride == 0 {
 			fmt.Printf("  gen %d: %d\n", i, s)
 		}
 	}

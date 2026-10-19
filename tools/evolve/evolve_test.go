@@ -44,6 +44,10 @@ func tinyEvolveCfg() config.Config {
 	return cfg
 }
 
+func defaultEvo() config.EvolveConfig {
+	return config.Defaults().Evolve
+}
+
 var durationRe = regexp.MustCompile(`(stopped by .+ after [0-9]+ generations in) .*`)
 
 func TestEvolveTinyBudgetRunsDeterministically(t *testing.T) {
@@ -110,7 +114,7 @@ func sampleIndividual(t *testing.T) individual {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ind, ok := evaluate(res.Grid)
+	ind, ok := evaluate(res.Grid, defaultEvo())
 	if !ok {
 		t.Fatalf("the generated puzzle must pass evaluation: %d clues", cluesOf(res.Grid))
 	}
@@ -118,17 +122,18 @@ func sampleIndividual(t *testing.T) individual {
 }
 
 func TestEvaluateEnforcesTheClueBand(t *testing.T) {
+	evo := defaultEvo()
 	solved, err := sudoku.Parse81(puzzle.SampleSolution81)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := evaluate(solved); ok {
+	if _, ok := evaluate(solved, evo); ok {
 		t.Error("full grid outside the band must be rejected")
 	}
-	if _, ok := evaluate(sudoku.Grid{}); ok {
+	if _, ok := evaluate(sudoku.Grid{}, evo); ok {
 		t.Error("empty grid outside the band must be rejected")
 	}
-	if _, ok := evaluate(sampleIndividual(t).grid); !ok {
+	if _, ok := evaluate(sampleIndividual(t).grid, evo); !ok {
 		t.Error("an in-band unique puzzle must be accepted")
 	}
 }
@@ -220,18 +225,19 @@ func TestPlaceableExceptDetectsConflicts(t *testing.T) {
 
 func TestRemoveAndAddClueGuards(t *testing.T) {
 	rng := rand.New(rand.NewPCG(3, 3))
+	evo := defaultEvo()
 	g := sampleIndividual(t).grid
-	if out := removeClue(rng, g); cluesOf(out) != cluesOf(g)-1 {
+	if out := removeClue(rng, g, evo.MinClues); cluesOf(out) != cluesOf(g)-1 {
 		t.Errorf("remove: got %d clues want %d", cluesOf(out), cluesOf(g)-1)
 	}
 	solved, err := sudoku.Parse81(puzzle.SampleSolution81)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out := removeClue(rng, solved); cluesOf(out) < cluesOf(solved)-1 {
+	if out := removeClue(rng, solved, evo.MinClues); cluesOf(out) < cluesOf(solved)-1 {
 		t.Errorf("remove below the floor dropped more than one clue")
 	}
-	if out := addClue(rng, solved, solved); out != solved {
+	if out := addClue(rng, solved, solved, evo.MaxClues); out != solved {
 		t.Error("add at max clues must be a no-op")
 	}
 }
@@ -247,7 +253,7 @@ func TestCrossoverChildWithIdenticalParentsReturnsParent(t *testing.T) {
 	rng := rand.New(rand.NewPCG(2, 2))
 	parent := sampleIndividual(t)
 	c := &counters{}
-	if got := crossoverChild(rng, parent, parent, c); got.grid != parent.grid {
+	if got := crossoverChild(rng, parent, parent, c, defaultEvo()); got.grid != parent.grid {
 		t.Error("identical parents must reproduce the parent grid")
 	}
 	if c.crossoverAttempt != 1 {
@@ -269,9 +275,10 @@ func TestCrossoverChildTrimsAndAcceptsSameSolutionUnion(t *testing.T) {
 	}
 	sparse.clues = cluesOf(sparse.grid)
 	c := &counters{}
+	evo := defaultEvo()
 	for seed := uint64(1); seed <= 20; seed++ {
-		got := crossoverChild(rand.New(rand.NewPCG(seed, seed)), dense, sparse, c)
-		if got.clues < minClues || got.clues > maxClues {
+		got := crossoverChild(rand.New(rand.NewPCG(seed, seed)), dense, sparse, c, evo)
+		if got.clues < evo.MinClues || got.clues > evo.MaxClues {
 			t.Fatalf("seed %d: child clues %d outside the band", seed, got.clues)
 		}
 		if got.grid != dense.grid && got.grid != sparse.grid {
@@ -301,12 +308,13 @@ func TestCrossoverChildMixesDistinctSolutions(t *testing.T) {
 	}
 	a.clues, b.clues = cluesOf(a.grid), cluesOf(b.grid)
 	c := &counters{}
+	evo := defaultEvo()
 	for seed := uint64(1); seed <= 10; seed++ {
-		got := crossoverChild(rand.New(rand.NewPCG(seed, seed)), a, b, c)
+		got := crossoverChild(rand.New(rand.NewPCG(seed, seed)), a, b, c, evo)
 		if got.grid == a.grid || got.grid == b.grid {
 			continue
 		}
-		if got.clues < minClues || got.clues > maxClues {
+		if got.clues < evo.MinClues || got.clues > evo.MaxClues {
 			t.Fatalf("seed %d: child clues %d outside the band", seed, got.clues)
 		}
 	}
@@ -341,7 +349,7 @@ func TestEvaluateSolveRejectsUnsolvableInBandGrids(t *testing.T) {
 	if cluesOf(broken) != cluesOf(base) {
 		t.Fatalf("clue count moved: got %d want %d", cluesOf(broken), cluesOf(base))
 	}
-	if _, ok := evaluateSolve(broken); ok {
+	if _, ok := evaluateSolve(broken, defaultEvo()); ok {
 		t.Error("grid with a duplicated digit in one row must fail evaluation while staying in the band")
 	}
 }
@@ -352,7 +360,7 @@ func TestCrossoverChildPrefersTheHarderLead(t *testing.T) {
 	easy := hard
 	easy.steps = hard.steps - 1
 	c := &counters{}
-	got := crossoverChild(rng, easy, hard, c)
+	got := crossoverChild(rng, easy, hard, c, defaultEvo())
 	if got.grid != hard.grid {
 		t.Errorf("crossover of identical grids must return the harder lead")
 	}
@@ -367,14 +375,15 @@ func TestSwapWithinBandReturnsEmptyGridUnchanged(t *testing.T) {
 }
 
 func TestEvaluateRejectsNonUniqueInBandGrids(t *testing.T) {
+	evo := defaultEvo()
 	ruin := sampleIndividual(t).grid
-	for cluesOf(ruin) > minClues && isUnique(ruin) {
+	for cluesOf(ruin) > evo.MinClues && isUnique(ruin) {
 		ruin[givenCells(ruin)[0]] = config.EmptyDigit
 	}
-	if cluesOf(ruin) < minClues || isUnique(ruin) {
+	if cluesOf(ruin) < evo.MinClues || isUnique(ruin) {
 		t.Fatalf("could not build an in-band non-unique grid: %d clues, unique %v", cluesOf(ruin), isUnique(ruin))
 	}
-	if _, ok := evaluate(ruin); ok {
+	if _, ok := evaluate(ruin, evo); ok {
 		t.Error("grid that lost uniqueness must be rejected while staying in the band")
 	}
 }
@@ -382,10 +391,11 @@ func TestEvaluateRejectsNonUniqueInBandGrids(t *testing.T) {
 func TestMutateChildHitsEveryArm(t *testing.T) {
 	parent := sampleIndividual(t)
 	c := &counters{}
+	evo := defaultEvo()
 	for seed := uint64(1); seed <= 40; seed++ {
 		rng := rand.New(rand.NewPCG(seed, seed))
 		for range 40 {
-			_ = mutateChild(rng, parent, c)
+			_ = mutateChild(rng, parent, c, evo)
 		}
 	}
 	for name, n := range map[string]int{
@@ -407,10 +417,10 @@ func TestSwapAndRemoveCandidatesGuardNoOpGrids(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := swapCandidate(rng, individual{grid: solved, sol: solved, clues: 81}, &repairs); ok {
+	if _, ok := swapCandidate(rng, individual{grid: solved, sol: solved, clues: 81}, &repairs, defaultEvo()); ok {
 		t.Error("full grid swap must not produce an individual")
 	}
-	if _, ok := removeCandidate(rng, individual{grid: solved, sol: solved, clues: 81}, &repairs); ok {
+	if _, ok := removeCandidate(rng, individual{grid: solved, sol: solved, clues: 81}, &repairs, defaultEvo()); ok {
 		t.Error("full grid remove must not produce an individual")
 	}
 }
@@ -432,7 +442,7 @@ func TestRepairedChildIsBestEffort(t *testing.T) {
 	if isUnique(ruined) {
 		t.Fatal("the ruin must lose uniqueness for this fixture")
 	}
-	if _, ok := repairedChild(rng, ruined, cluesOf(g)); ok {
+	if _, ok := repairedChild(rng, ruined, cluesOf(g), defaultEvo()); ok {
 		t.Error("repair past the clue ceiling must refuse to return an individual")
 	}
 }
@@ -445,7 +455,7 @@ func TestNextGenerationKeepsSizeOrderAndElites(t *testing.T) {
 		t.Fatal(err)
 	}
 	rng := rand.New(rand.NewPCG(42, 42))
-	next := nextGeneration(rng, pop, &counters{}, cfg.Evolve.Population)
+	next := nextGeneration(rng, pop, &counters{}, cfg.Evolve)
 	if len(next) != cfg.Evolve.Population {
 		t.Fatalf("size: got %d want %d", len(next), cfg.Evolve.Population)
 	}
@@ -463,8 +473,9 @@ func TestNextGenerationKeepsSizeOrderAndElites(t *testing.T) {
 func TestTournamentPicksFromThePopulation(t *testing.T) {
 	rng := rand.New(rand.NewPCG(7, 7))
 	pop := []individual{{steps: 1}, {steps: 2}, {steps: 3}, {steps: 4}}
+	k := defaultEvo().TournamentK
 	for range 20 {
-		got := tournament(rng, pop)
+		got := tournament(rng, pop, k)
 		found := false
 		for _, p := range pop {
 			if p.steps == got.steps {
