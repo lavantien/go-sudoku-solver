@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Exact cover solver over the boolean incidence matrix, 729 rows by 324 columns, with a configurable node cap.
 - Simulated annealing solver with a restart portfolio and integer-only metropolis accept path.
 - Parallel portfolio race method with policy-mined racer ordering: a least-squares weight table over the grid feature vector scores the racers, regenerable with `make train`.
-- htmx web ui (solve, generate, history, run detail) and JSON API at `/api/v1`, both persisting to sqlite with WAL and seeding the classic sample on an empty database.
+- htmx web ui (solve, generate, history, run detail) and JSON API at `/api/v1`, both of which persist to sqlite with WAL and seed the classic sample on an empty database.
 - `sudoku gen` with clue target and deterministic seed, `sudoku serve`, `sudoku version`, `sudoku coverage`, `sudoku screenshot`.
 - Extreme complexity fixture evolved by `tools/evolve`: 21 clues forcing 4646 propagate steps.
 - Quality chain targets: `race`, `fuzz`, `mutate`, `memtest`, `e2e`, `verify`, `coverage`, `screenshots`, `diagrams`.
