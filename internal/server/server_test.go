@@ -570,6 +570,47 @@ func TestAPIGenerateRoundTrip(t *testing.T) {
 	}
 }
 
+func TestAPIGenerateRejectsSeedAboveInt64(t *testing.T) {
+	srv, st := newServer(t)
+	ts, c := startSite(t, srv.Handler())
+	resp, raw := postJSON(t, c, ts.URL+config.APIGeneratePath, `{"clues": 40, "seed": 9223372036854775808}`)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("seed above max int64 status: got %d want 400: %s", resp.StatusCode, raw)
+	}
+	var e errorJSON
+	decodeInto(t, raw, &e)
+	if !strings.Contains(e.Error, "seed") {
+		t.Errorf("error envelope: got %q want the seed ceiling message", e.Error)
+	}
+	puzzles, err := st.ListPuzzles(10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(puzzles) != 0 {
+		t.Errorf("rejected seed must not persist: got %d puzzles", len(puzzles))
+	}
+}
+
+func TestGenerateFragmentRejectsSeedAboveInt64(t *testing.T) {
+	srv, st := newServer(t)
+	ts, c := startSite(t, srv.Handler())
+	form := url.Values{config.FlagClues: {"40"}, config.FlagSeed: {"18446744073709551615"}}
+	resp, body := postForm(t, c, ts.URL+config.FragmentGenPath, form)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("fragment seed above max int64 status: got %d want 400: %s", resp.StatusCode, body)
+	}
+	if !strings.Contains(body, "seed") {
+		t.Errorf("fragment body lacks the seed cue: %q", body)
+	}
+	puzzles, err := st.ListPuzzles(10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(puzzles) != 0 {
+		t.Errorf("rejected fragment seed must not persist: got %d puzzles", len(puzzles))
+	}
+}
+
 func TestAPIHealthAndVersion(t *testing.T) {
 	srv, _ := newServer(t)
 	ts, c := startSite(t, srv.Handler())

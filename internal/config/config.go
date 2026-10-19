@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -362,6 +363,9 @@ const (
 	APIVersionPath  = "/api/v1/version"
 
 	FormGrid81 = "grid81"
+
+	MaxSeed       = math.MaxInt64
+	ErrSeedMaxFmt = "seed must be at most %d"
 
 	QueryLimit  = "limit"
 	QueryOffset = "offset"

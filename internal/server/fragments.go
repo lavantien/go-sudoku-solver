@@ -50,6 +50,10 @@ func (s *Server) handleGenerateFragment(w http.ResponseWriter, r *http.Request) 
 		}
 		seed = n
 	}
+	if seed > uint64(config.MaxSeed) {
+		s.renderSolveError(w, http.StatusBadRequest, fmt.Sprintf(config.ErrSeedMaxFmt, config.MaxSeed))
+		return
+	}
 	res, err := puzzle.Generate(clues, seed, solver.CountSolutions)
 	if err != nil {
 		s.renderSolveError(w, http.StatusBadRequest, err.Error())

@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -188,6 +189,10 @@ func (s *Server) handleAPIGenerate(w http.ResponseWriter, r *http.Request) {
 	req := generateRequest{Clues: s.cfg.Gen.Clues, Seed: s.cfg.Gen.Seed}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if req.Seed > uint64(config.MaxSeed) {
+		s.writeError(w, http.StatusBadRequest, fmt.Sprintf(config.ErrSeedMaxFmt, config.MaxSeed))
 		return
 	}
 	res, err := puzzle.Generate(req.Clues, req.Seed, solver.CountSolutions)
