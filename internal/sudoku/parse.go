@@ -22,7 +22,7 @@ func ParseInput(r io.Reader) (Grid, error) {
 			return g, fmt.Errorf(config.ErrLineLengthFmt, len(line))
 		}
 		for j, char := range line {
-			if char == '.' {
+			if char == config.EmptyChar {
 				g[i*config.Size+j] = config.EmptyDigit
 			} else if char >= '1' && char <= '9' {
 				g[i*config.Size+j] = uint8(char - '0')
@@ -43,7 +43,7 @@ func Parse81(s string) (Grid, error) {
 		return g, fmt.Errorf(config.ErrGridLengthFmt, len(s))
 	}
 	for j, char := range s {
-		if char == '.' {
+		if char == config.EmptyChar {
 			g[j] = config.EmptyDigit
 		} else if char >= '1' && char <= '9' {
 			g[j] = uint8(char - '0')
@@ -58,7 +58,7 @@ func Serialize(g Grid) string {
 	var b strings.Builder
 	for i := range config.Cells {
 		if g[i] == config.EmptyDigit {
-			b.WriteByte('.')
+			b.WriteByte(config.EmptyChar)
 		} else {
 			b.WriteByte('0' + g[i])
 		}
