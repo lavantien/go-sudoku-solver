@@ -22,17 +22,6 @@ import (
 	"github.com/lavantien/go-sudoku-solver/internal/sudoku"
 )
 
-const (
-	clueBase    = 24
-	clueSpan    = 27
-	clueStride  = 7
-	racerCount  = 3
-	ridgeLambda = 1.0
-	pivotFloor  = 1e-12
-	inverseTol  = 1e-6
-	tablePerm   = 0o644
-)
-
 type labeled struct {
 	features []float64
 	winner   int
@@ -57,7 +46,7 @@ func run(logger *slog.Logger, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	weights, err := fit(logger, samples, cfg.MatmulCutoff)
+	weights, err := fit(logger, samples, cfg.MatmulCutoff, cfg.Train)
 	if err != nil {
 		return err
 	}
@@ -68,24 +57,24 @@ func run(logger *slog.Logger, cfg config.Config) error {
 	return nil
 }
 
-func clueTarget(seed uint64) int {
-	return clueBase + int(seed*clueStride%clueSpan)
+func clueTarget(seed uint64, t config.TrainConfig) int {
+	return t.ClueBase + int(seed*uint64(t.ClueStride)%uint64(t.ClueSpan))
 }
 
-func racerMethods() []solver.Method {
-	racers := make([]solver.Method, racerCount)
-	copy(racers, solver.All()[:racerCount])
+func racerMethods(count int) []solver.Method {
+	racers := make([]solver.Method, count)
+	copy(racers, solver.All()[:count])
 	return racers
 }
 
 func corpus(logger *slog.Logger, cfg config.Config) ([]labeled, error) {
-	logging.Enter(logger, "corpus", "seeds", cfg.Train.Seeds, "clues", clueBase, "to", clueBase+clueSpan-1)
-	racers := racerMethods()
+	logging.Enter(logger, "corpus", "seeds", cfg.Train.Seeds, "clues", cfg.Train.ClueBase, "to", cfg.Train.ClueBase+cfg.Train.ClueSpan-1)
+	racers := racerMethods(cfg.Train.RacerCount)
 	raceCfg := config.Defaults()
 	out := make([]labeled, 0, cfg.Train.Seeds)
-	totals := make([]time.Duration, racerCount)
+	totals := make([]time.Duration, cfg.Train.RacerCount)
 	for seed := uint64(1); seed <= uint64(cfg.Train.Seeds); seed++ {
-		target := clueTarget(seed)
+		target := clueTarget(seed, cfg.Train)
 		gen, err := puzzle.Generate(target, seed, solver.CountSolutions)
 		if err != nil {
 			err = fmt.Errorf("seed %d: %w", seed, err)
@@ -125,33 +114,33 @@ func raceLabel(racers []solver.Method, g sudoku.Grid, cfg config.Config, totals 
 	return winner, nil
 }
 
-func fit(logger *slog.Logger, samples []labeled, cutoff int) ([][]float64, error) {
+func fit(logger *slog.Logger, samples []labeled, cutoff int, t config.TrainConfig) ([][]float64, error) {
 	logging.Enter(logger, "fit", "samples", len(samples), "cutoff", cutoff)
 	width := len(samples[0].features)
 	a := matmul.Dense{N: width, Data: make([]float64, width*width)}
-	xty := make([]float64, width*racerCount)
+	xty := make([]float64, width*t.RacerCount)
 	for _, s := range samples {
 		for i, fi := range s.features {
 			for j, fj := range s.features {
 				a.Data[i*width+j] += fi * fj
 			}
-			for m := range racerCount {
+			for m := range t.RacerCount {
 				loss := 0.0
 				if m != s.winner {
 					loss = 1.0
 				}
-				xty[i*racerCount+m] += fi * loss
+				xty[i*t.RacerCount+m] += fi * loss
 			}
 		}
 	}
 	ridge := matmul.Dense{N: width, Data: make([]float64, width*width)}
 	for i := range width {
-		ridge.Data[i*width+i] = ridgeLambda
+		ridge.Data[i*width+i] = t.RidgeLambda
 	}
 	a = matmul.Add(a, ridge)
-	inv, err := invert(a)
+	inv, err := invert(a, t.PivotFloor)
 	if err != nil {
-		logging.Fail(logger, "fit", err, "ridge", ridgeLambda)
+		logging.Fail(logger, "fit", err, "ridge", t.RidgeLambda)
 		return nil, fmt.Errorf("fit: %w", err)
 	}
 	check := matmul.MulStrassen(a, inv, cutoff)
@@ -161,27 +150,27 @@ func fit(logger *slog.Logger, samples []labeled, cutoff int) ([][]float64, error
 			if i == j {
 				want = 1.0
 			}
-			if math.Abs(check.Data[i*width+j]-want) > inverseTol {
+			if math.Abs(check.Data[i*width+j]-want) > t.InverseTol {
 				err := fmt.Errorf("inverse check failed at %d,%d: %.6g", i, j, check.Data[i*width+j])
 				logging.Fail(logger, "fit", err)
 				return nil, fmt.Errorf("fit: %w", err)
 			}
 		}
 	}
-	weights := make([][]float64, racerCount)
-	for m := range racerCount {
+	weights := make([][]float64, t.RacerCount)
+	for m := range t.RacerCount {
 		weights[m] = make([]float64, width)
 		for i := range width {
 			for j := range width {
-				weights[m][i] += inv.Data[i*width+j] * xty[j*racerCount+m]
+				weights[m][i] += inv.Data[i*width+j] * xty[j*t.RacerCount+m]
 			}
 		}
 	}
-	logging.Exit(logger, "fit", "ridge", ridgeLambda, "features", width)
+	logging.Exit(logger, "fit", "ridge", t.RidgeLambda, "features", width)
 	return weights, nil
 }
 
-func invert(a matmul.Dense) (matmul.Dense, error) {
+func invert(a matmul.Dense, pivotFloor float64) (matmul.Dense, error) {
 	n := a.N
 	cols := 2 * n
 	m := make([]float64, n*cols)
@@ -235,7 +224,7 @@ func emit(logger *slog.Logger, weights [][]float64, cfg config.Config) error {
 		logging.Fail(logger, "emit", err)
 		return fmt.Errorf("emit: %w", err)
 	}
-	if err := os.WriteFile(path, render(weights), tablePerm); err != nil {
+	if err := os.WriteFile(path, render(weights), cfg.Train.TablePerm); err != nil {
 		logging.Fail(logger, "emit", err, "path", path)
 		return fmt.Errorf("emit: %w", err)
 	}

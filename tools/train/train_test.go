@@ -65,11 +65,11 @@ func TestFitStrassenCutoffReproducesClassicalBytes(t *testing.T) {
 		padded *= 2
 	}
 	defaultCutoff := config.Defaults().MatmulCutoff
-	atPadded, err := fit(logger, samples, padded)
+	atPadded, err := fit(logger, samples, padded, cfg.Train)
 	if err != nil {
 		t.Fatalf("fit at the padded cutoff %d: %v", padded, err)
 	}
-	atDefault, err := fit(logger, samples, defaultCutoff)
+	atDefault, err := fit(logger, samples, defaultCutoff, cfg.Train)
 	if err != nil {
 		t.Fatalf("fit at the default cutoff %d: %v", defaultCutoff, err)
 	}
@@ -118,12 +118,13 @@ func TestTrainCliExitCodes(t *testing.T) {
 }
 
 func TestInvertRejectsSingularAndSwapsPivots(t *testing.T) {
+	pivotFloor := config.Defaults().Train.PivotFloor
 	singular := matmul.Dense{N: 2, Data: []float64{0, 1, 0, 0}}
-	if _, err := invert(singular); err == nil {
+	if _, err := invert(singular, pivotFloor); err == nil {
 		t.Error("singular matrix: got nil want error")
 	}
 	needsSwap := matmul.Dense{N: 2, Data: []float64{0, 1, 1, 2}}
-	inv, err := invert(needsSwap)
+	inv, err := invert(needsSwap, pivotFloor)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,10 +141,11 @@ func TestInvertRejectsSingularAndSwapsPivots(t *testing.T) {
 }
 
 func TestClueTargetStaysInTheBand(t *testing.T) {
+	tconf := config.Defaults().Train
 	for seed := uint64(1); seed <= 50; seed++ {
-		got := clueTarget(seed)
-		if got < clueBase || got >= clueBase+clueSpan {
-			t.Fatalf("seed %d: clue target %d outside %d..%d", seed, got, clueBase, clueBase+clueSpan-1)
+		got := clueTarget(seed, tconf)
+		if got < tconf.ClueBase || got >= tconf.ClueBase+tconf.ClueSpan {
+			t.Fatalf("seed %d: clue target %d outside %d..%d", seed, got, tconf.ClueBase, tconf.ClueBase+tconf.ClueSpan-1)
 		}
 	}
 }
