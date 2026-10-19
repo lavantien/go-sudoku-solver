@@ -19,6 +19,11 @@ import (
 
 func bootServe(t *testing.T, args []string) (string, func()) {
 	t.Helper()
+	return bootServeCfg(t, config.Defaults(), args)
+}
+
+func bootServeCfg(t *testing.T, cfg config.Config, args []string) (string, func()) {
+	t.Helper()
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -27,28 +32,27 @@ func bootServe(t *testing.T, args []string) (string, func()) {
 	os.Stderr = w
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- runServe(ctx, config.Defaults(), args) }()
+	go func() { done <- runServe(ctx, cfg, args) }()
 	addrCh := make(chan string, 1)
+	drained := make(chan struct{})
 	go func() {
+		defer close(drained)
 		sc := bufio.NewScanner(r)
 		for sc.Scan() {
 			if line, ok := strings.CutPrefix(sc.Text(), config.ServeAddrPrefix); ok {
-				addrCh <- strings.TrimSpace(line)
-				return
+				select {
+				case addrCh <- strings.TrimSpace(line):
+				default:
+				}
 			}
 		}
 		if err := sc.Err(); err != nil {
 			fmt.Fprintf(os.Stderr, "serve: stderr scan: %v\n", err)
 		}
-		close(addrCh)
 	}()
 	var addr string
 	select {
-	case v, ok := <-addrCh:
-		if !ok {
-			os.Stderr = old
-			t.Fatal("stderr closed without the addr line")
-		}
+	case v := <-addrCh:
 		addr = v
 	case err := <-done:
 		os.Stderr = old
@@ -69,6 +73,7 @@ func bootServe(t *testing.T, args []string) (string, func()) {
 		}
 		os.Stderr = old
 		_ = w.Close()
+		<-drained
 		_ = r.Close()
 	}
 	return addr, stop
@@ -159,6 +164,26 @@ func TestServeShutdownTimesOutUnderStalledClient(t *testing.T) {
 	stop()
 	if err := conn.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestServeDebugLoggingKeepsStderrDrainingUnderLoad(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.LogLevel = "debug"
+	db := filepath.Join(t.TempDir(), "serve.db")
+	addr, stop := bootServeCfg(t, cfg, []string{"--" + config.FlagAddr, "127.0.0.1:0", "--" + config.FlagDB, db})
+	defer stop()
+	client := &http.Client{Timeout: 10 * time.Second}
+	defer client.CloseIdleConnections()
+	for range 60 {
+		resp, err := client.Get("http://" + addr + config.APIHealthPath)
+		if err != nil {
+			t.Fatalf("health under debug logging: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("health status: got %d want 200", resp.StatusCode)
+		}
+		_ = resp.Body.Close()
 	}
 }
 
