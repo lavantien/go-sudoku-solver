@@ -70,13 +70,24 @@ func annealRestart(ctx context.Context, g sudoku.Grid, c config.Config, restart 
 		span = 1
 	}
 	clock := 0
+	stuck := false
+	var buf [config.Cells]int
 	for range c.Anneal.Iterations {
 		if ctx.Err() != nil {
 			return bank, bankCost
 		}
 		temp := tempAt(t0, c.Anneal.TempEnd, clock, span)
 		clock++
-		move, ok := pickMove(cur, free, rng)
+		conflicted := conflictedCells(cur, buf[:0])
+		if !anySwappable(conflicted, free) {
+			if stuck {
+				break
+			}
+			stuck = true
+			continue
+		}
+		stuck = false
+		move, ok := pickConflictedMove(conflicted, free, rng)
 		if !ok {
 			continue
 		}
@@ -135,11 +146,24 @@ const annealRotateRate = 5
 
 func pickMove(cur sudoku.Grid, free [config.Size][]int, rng *rand.Rand) ([3]int, bool) {
 	var buf [config.Cells]int
-	for range 16 {
-		conflicted := conflictedCells(cur, buf[:0])
-		if len(conflicted) == 0 {
-			return [3]int{}, false
+	return pickConflictedMove(conflictedCells(cur, buf[:0]), free, rng)
+}
+
+func anySwappable(conflicted []int, free [config.Size][]int) bool {
+	for _, a := range conflicted {
+		rowFree := free[sudoku.CellRow(a)]
+		if len(rowFree) >= 2 && indexOf(rowFree, a) >= 0 {
+			return true
 		}
+	}
+	return false
+}
+
+func pickConflictedMove(conflicted []int, free [config.Size][]int, rng *rand.Rand) ([3]int, bool) {
+	if len(conflicted) == 0 || !anySwappable(conflicted, free) {
+		return [3]int{}, false
+	}
+	for range 16 {
 		a := conflicted[rng.IntN(len(conflicted))]
 		rowFree := free[sudoku.CellRow(a)]
 		if len(rowFree) < 2 {

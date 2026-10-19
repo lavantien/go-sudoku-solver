@@ -3,6 +3,7 @@ package solver
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/lavantien/go-sudoku-solver/internal/config"
 	"github.com/lavantien/go-sudoku-solver/internal/puzzle"
@@ -77,6 +78,24 @@ func TestAnnealUnsolvableKeepsRowPermutations(t *testing.T) {
 	}
 	if got.Grid[0] != 5 || got.Grid[1] != 5 {
 		t.Errorf("row 0 givens moved: %s", sudoku.Serialize(got.Grid))
+	}
+}
+
+func TestAnnealFullyGivenInvalidGridExitsFastUnsolvedDeterministic(t *testing.T) {
+	in := solutionGrid(t)
+	in[0] = in[6]
+	start := time.Now()
+	got := Anneal(context.Background(), in, config.Defaults())
+	wall := time.Since(start)
+	if got.Solved {
+		t.Errorf("fully given invalid grid reported solved")
+	}
+	if wall >= 2*time.Second {
+		t.Errorf("wall: got %v want under 2s, unswappable rounds must not burn the budget", wall)
+	}
+	again := Anneal(context.Background(), in, config.Defaults())
+	if again.Grid != got.Grid || again.Steps != got.Steps {
+		t.Errorf("two runs differ: steps %d vs %d", got.Steps, again.Steps)
 	}
 }
 
