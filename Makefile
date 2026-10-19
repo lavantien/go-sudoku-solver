@@ -52,7 +52,7 @@ FZ := $(CGO_ENV) GOMEMLIMIT=$(MEMSOFT) go test $(TAGS)
 
 RELEASE_FLAGS := -trimpath -ldflags "-s -w"
 
-.PHONY: help all build test test-pkg test-one race vet fmt lint lint-pkg typecheck sloc fuzz fuzz-one mutate memtest e2e verify vendor-assets diagrams gen train evolve bench run server seed tidy clean coverage screenshots release topics release-upload
+.PHONY: help all build test test-pkg test-one race vet fmt fmt-check lint lint-pkg typecheck sloc fuzz fuzz-one mutate memtest e2e verify vendor-assets diagrams gen train evolve bench run server seed tidy clean coverage screenshots release topics release-upload
 
 help: ## show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\nTargets:\n"} \
@@ -80,6 +80,9 @@ vet: ## go vet
 
 fmt: ## gofumpt all Go files
 	gofumpt -w .
+
+fmt-check: ## gofumpt check mode, fail on drift without editing
+	@set -e; drift=$$(gofumpt -l .); if [ -n "$$drift" ]; then printf '%s\n' "$$drift"; exit 1; fi
 
 lint: ## golangci-lint run
 	golangci-lint run
