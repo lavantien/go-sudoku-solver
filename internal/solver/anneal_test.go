@@ -2,6 +2,7 @@ package solver
 
 import (
 	"context"
+	"math/rand/v2"
 	"testing"
 	"time"
 
@@ -139,5 +140,47 @@ func TestRegistryHasAnneal(t *testing.T) {
 	}
 	if all[2].ID != "anneal" || all[2].Label != config.LabelAnneal {
 		t.Errorf("third method: got %s %s", all[2].ID, all[2].Label)
+	}
+}
+
+func TestAnySwappable(t *testing.T) {
+	var free [config.Size][]int
+	free[sudoku.CellRow(2)] = []int{2, 3}
+	free[sudoku.CellRow(9)] = []int{9}
+
+	if anySwappable([]int{0, 1}, free) {
+		t.Errorf("given conflicted cells in a two-free row counted swappable")
+	}
+	if !anySwappable([]int{2}, free) {
+		t.Errorf("free conflicted cell in a two-free row counted unswappable")
+	}
+	if anySwappable([]int{9}, free) {
+		t.Errorf("free conflicted cell in a one-free row counted swappable")
+	}
+}
+
+func TestPickConflictedMoveNoMoveLeavesRngUntouched(t *testing.T) {
+	var free [config.Size][]int
+	free[sudoku.CellRow(2)] = []int{2, 3}
+	var idle [3]int
+
+	rng := rand.New(rand.NewPCG(1, 0))
+	ref := rand.New(rand.NewPCG(1, 0))
+	move, ok := pickConflictedMove([]int{0, 1}, free, rng)
+	if ok || move != idle {
+		t.Fatalf("no-move input returned %v %v", move, ok)
+	}
+	if rng.Uint64() != ref.Uint64() {
+		t.Errorf("no-move round consumed rng draws")
+	}
+
+	rng = rand.New(rand.NewPCG(1, 0))
+	ref = rand.New(rand.NewPCG(1, 0))
+	move, ok = pickConflictedMove(nil, free, rng)
+	if ok || move != idle {
+		t.Fatalf("empty conflicted returned %v %v", move, ok)
+	}
+	if rng.Uint64() != ref.Uint64() {
+		t.Errorf("empty conflicted consumed rng draws")
 	}
 }
