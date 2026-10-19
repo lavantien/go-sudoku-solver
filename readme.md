@@ -1,7 +1,7 @@
 # go-sudoku-solver
 
 <!-- coverage:START -->
-coverage: 95.9% of statements
+![coverage](https://img.shields.io/badge/coverage-95.9%25-brightgreen)
 <!-- coverage:END -->
 
 ## Table of contents
@@ -13,7 +13,6 @@ coverage: 95.9% of statements
 5. [Production environment setup](#production-environment-setup)
 6. [Surfaces](#surfaces)
 7. [QA harness](#qa-harness)
-8. [Build logs](#build-logs)
 
 ## Pictures
 
@@ -124,7 +123,7 @@ Solver times from one `make bench` run on the development machine, the values va
 | anneal | extreme complexity | 1.08 s |
 | race | extreme complexity | 11.0 ms |
 
-The exact cover matrix. The cover solver works over a 729 by 324 boolean incidence matrix: one row per (cell, digit) pair, 81 cells times 9 digits, and four column families of 81 each, cell filled, row-unit digit, column-unit digit, box-unit digit. A row satisfies exactly 4 columns, a solution is a subset of 81 rows covering all 324 exactly once, and each selected row counts as one step. Node visits cap at `SUDOKU_COVER_NODE_CAP`, default 1048576, an unsolved report at the cap instead of an unbounded search.
+The exact cover matrix. The cover solver works over a 729 by 324 boolean incidence matrix: one row per (cell, digit) pair, 81 cells times 9 digits, and four column families of 81 each, cell filled, row-unit digit, column-unit digit, box-unit digit. A row satisfies exactly 4 columns, a solution is a subset of 81 rows covering all 324 exactly once, and each selected row counts as one step. Node visits cap at `SUDOKU_COVER_NODE_CAP`, default 1048576, an unsolved report at the cap and no unbounded search.
 
 The omega paragraph, existence bound versus runnable. The claim omega <= 9/4 for matrix multiplication rests on a family of bilinear algorithms whose existence is formalized over the complex numbers: no implementation of that family ships here. What is runnable is the certificate machinery in `internal/matmul`: a profile checker enforcing the 4 laws, symmetry, unit row, discrete concavity, and shifted tripling `P(a, 3h+a-1) >= 3P(a, h)`. The rank profile `a+b-1` passes three laws and fails exactly tripling at `a = 2`, `h = 1`, where `P(2, 4) = 5 < 3 P(2, 1) = 6`, the geometry profile `sqrt(ab(a+b-1))` passes all four, and the cap ladder `CapT(a) = 3ln(2a-1) / (4ln a)` descends from 1.188721876 at `a = 2` to 0.787499974 at `a = 1048576` and never reaches 3/4. Tests in the package pin every one of these values. The same package supplies the boolean multiplication that precomputes the cover solver's conflict matrix once per process, and its dense Strassen lane drives the trainer's normal-equation multiply, switching at `SUDOKU_MATMUL_CUTOFF`, default 64.
 
@@ -225,7 +224,7 @@ make coverage
 
 3. Loopback default. `server.addr` defaults to `127.0.0.1:8080`, the loopback only. Override with `--addr`, `SUDOKU_SERVER_ADDR`, or the `ADDR` make variable.
 
-4. Release binaries. `make release` cross-compiles stripped binaries with zig cc into `dist/release`, `make topics` sets the GitHub topic list, and `make release-upload` publishes the v1.0 GitHub release with those binaries.
+4. Release binaries. `make release` cross-compiles stripped binaries with zig cc into `dist/release`, `make topics` sets the GitHub topic list, and `make release-upload` publishes the GitHub release with those binaries.
 
 ## Surfaces
 
@@ -238,7 +237,7 @@ make coverage
 | sudoku solve | none | read the 9-line grid from stdin, print the report |
 | sudoku gen | --clues --seed | print one generated puzzle in the 9-line format |
 | sudoku serve | --addr --db | serve the htmx ui and the json api |
-| sudoku version | none | print `sudoku v1.0` |
+| sudoku version | none | print the version |
 | sudoku coverage | --profile --readme | recompute coverage and refresh the readme badge |
 | sudoku screenshot | --out dir | capture the ui and terminal journeys, `SUDOKU_BROWSER` picks the browser |
 
@@ -273,85 +272,50 @@ The `/api/v1` JSON surface:
 
 ### make targets
 
-`make help` prints this table from the Makefile comments:
+`make help` prints this table from `tools/help`:
 
 ```text
-help             show this help
-all              run the full test suite (default)
-build            build the sudoku binary into dist/
-test             run the full test suite
-test-pkg         run one package's tests: make test-pkg PKG=./internal/config
-test-one         run one named test: make test-one PKG=./internal/cli TEST=TestMainBare
-race             go test -race over the concurrent core (RACE_PKGS)
-vet              go vet
-fmt              gofumpt all Go files
-fmt-check        gofumpt check mode, fail on drift without editing
-lint             golangci-lint run
-lint-pkg         lint one package: make lint-pkg PKG=./internal/config
-typecheck        compile every package, then go vet
-sloc             enforce the 1000-line ceiling on every Go file
-fuzz             fuzz every target in the repo for FUZZ_TIME each
-fuzz-one         fuzz one target: make fuzz-one PKG=./internal/sudoku FUZZ_TARGET=FuzzParseInput
-mutate           mutation-test MUTATE_PKGS, every surviving mutant fails the build
-memtest          solver and e2e suites under a hard GOMEMLIMIT
-e2e              end-to-end suite over the real binary, a live server, and the browser UI
-verify           run the full quality chain, fail-fast
-vendor-assets    verify or refresh the vendored htmx pin in web/static
-diagrams         render every docs/diagrams/*.puml to a committed PNG beside it
-gen              print one generated puzzle in the 9-line input format
-train            regenerate the committed race-order policy table
-evolve           run the evolutionary hardest-puzzle search (tools/evolve)
-bench            benchmark the solver methods on the extreme and classic samples
-seed             delete the database so the next 'make run' re-seeds it
-tidy             go mod tidy
-clean            remove generated artifacts (database, binaries, tools)
-coverage         recompute no-exclusions coverage, enforce the 95% floor, refresh the badge
-screenshots      capture the UI and terminal journeys into project-pictures/
-release          cross-compile stripped release binaries with zig cc into dist/release
-topics           set the GitHub repository topic list
-release-upload   publish the v1.0 GitHub release with the cross-compiled binaries
+Usage: make <target>
+
+Targets:
+  help             show this help
+  all              run the full test suite (default)
+  build            build the sudoku binary into dist/
+  test             run the full test suite
+  test-pkg         run one package's tests: make test-pkg PKG=./internal/config
+  test-one         run one named test: make test-one PKG=./internal/cli TEST=TestMainBare
+  race             go test -race over the concurrent core (RACE_PKGS)
+  vet              go vet
+  fmt              gofumpt all Go files
+  fmt-check        gofumpt check mode, fail on drift without editing
+  lint             golangci-lint run
+  lint-pkg         lint one package: make lint-pkg PKG=./internal/config
+  typecheck        compile every package, then go vet
+  sloc             enforce the 1000-line ceiling on every Go file
+  fuzz             fuzz every target in the repo for FUZZ_TIME each
+  fuzz-one         fuzz one target: make fuzz-one PKG=./internal/sudoku FUZZ_TARGET=FuzzParseInput
+  mutate           mutation-test MUTATE_PKGS, every surviving mutant fails the build
+  memtest          solver and e2e suites under a hard GOMEMLIMIT
+  e2e              end-to-end suite over the real binary, a live server, and the browser UI
+  verify           run the full quality chain, fail-fast
+  vendor-assets    verify or refresh the vendored htmx pin in web/static
+  diagrams         render every docs/diagrams/*.puml to a committed PNG beside it
+  gen              print one generated puzzle in the 9-line input format
+  train            regenerate the committed race-order policy table
+  evolve           run the evolutionary hardest-puzzle search (tools/evolve)
+  bench            benchmark the solver methods on the extreme and classic samples
+  seed             delete the database so the next 'make run' re-seeds it
+  tidy             go mod tidy
+  clean            remove generated artifacts (database, binaries, tools)
+  coverage         recompute no-exclusions coverage, enforce the 95% floor, refresh the badge
+  screenshots      capture the UI and terminal journeys into project-pictures/
+  release          cross-compile stripped release binaries with zig cc into dist/release
+  topics           set the GitHub repository topic list
+  release-upload   publish the GitHub release with the cross-compiled binaries
 ```
 
-`make run`, also `make server`, starts the web server, its target name carries a space so the help filter above skips it.
+`make run`, also `make server`, starts the web server, its target name carries a space so the help tool above skips it.
 
 ## QA harness
 
-Every change runs the verification chain through make, committing at each green step. The gates: `make test`, `make race`, `make fmt`, `make lint`, `make typecheck`, `make sloc`, `make fuzz`, `make mutate`, `make memtest`, `make e2e`. `make verify` chains test, memtest, fmt, lint, typecheck, sloc, fuzz, mutate, e2e fail-fast, and `make race` runs as its own step outside the chain. Global statement coverage holds at 95% or above over every package with no exclusions, checked by `make coverage`, with 100% the target. Pinned fixtures, per-method step semantics, the race contract, and the golden normalization rules are recorded in [docs/qa/baselines.md](docs/qa/baselines.md), with the tuning ledger in [docs/qa/notes/anneal-tuning.md](docs/qa/notes/anneal-tuning.md) and the evolution ledger in [docs/qa/notes/evolve-run.md](docs/qa/notes/evolve-run.md).
-
-## Build logs
-
-<!-- buildlogs:START -->
-```text
-$ make verify
-ok  	github.com/lavantien/go-sudoku-solver/tools/mutator	31.895s
-ok  	github.com/lavantien/go-sudoku-solver/tools/train	(cached)
-?   	github.com/lavantien/go-sudoku-solver/web	[no test files]
-
-CGO_ENABLED=1 GOMEMLIMIT=512MiB go test  -count=1 -timeout 15m ./internal/solver ./internal/e2e
-ok  	github.com/lavantien/go-sudoku-solver/internal/solver	16.432s
-ok  	github.com/lavantien/go-sudoku-solver/internal/e2e	18.600s
-
-golangci-lint run
-0 issues.
-
-sloc ok
-
-fuzz: elapsed: 21s, execs: 1184 (342/sec), new interesting: 2 (total: 8)
-PASS
-ok  	github.com/lavantien/go-sudoku-solver/internal/solver	21.874s
-
-progress 650/650
-slots=8 mutants=650 killed=570 invalid=80 survived=0
-
---- PASS: TestUISolveJourney (4.33s)
-PASS
-ok  	github.com/lavantien/go-sudoku-solver/internal/e2e	39.660s
-
-$ make race
-ok  	github.com/lavantien/go-sudoku-solver/internal/solver	32.358s
-ok  	github.com/lavantien/go-sudoku-solver/internal/store	2.872s
-ok  	github.com/lavantien/go-sudoku-solver/internal/server	102.529s
-ok  	github.com/lavantien/go-sudoku-solver/internal/cli	35.527s
-ok  	github.com/lavantien/go-sudoku-solver/internal/e2e	26.833s
-```
-<!-- buildlogs:END -->
+Every change runs the verification chain through make, committing at each green step. The gates: `make test`, `make race`, `make fmt`, `make lint`, `make typecheck`, `make sloc`, `make fuzz`, `make mutate`, `make memtest`, `make e2e`. `make verify` chains test, memtest, fmt, lint, typecheck, sloc, fuzz, mutate, e2e fail-fast, and `make race` runs as its own step outside the chain. Global statement coverage holds at 95% or above over every package with no exclusions, checked by `make coverage`, with 100% the target. Pinned fixtures, per-method step semantics, the race contract, and the golden normalization rules are recorded in [docs/qa/baselines.md](docs/qa/baselines.md), with the tuning ledger in [docs/qa/notes/anneal-tuning.md](docs/qa/notes/anneal-tuning.md) and the evolution ledger in [docs/qa/notes/evolve-run.md](docs/qa/notes/evolve-run.md). The verify and race tails of the latest full run are kept in [docs/qa/build-logs.md](docs/qa/build-logs.md).
