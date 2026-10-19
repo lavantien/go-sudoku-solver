@@ -161,9 +161,6 @@ func (s *Server) solveMethod(ctx context.Context, m solver.Method, g sudoku.Grid
 		return m.Fn(ctx, g, s.cfg)
 	}
 	order := policy.ResolveOrder(g)
-	if len(order) == 0 {
-		order = policy.FixedOrder()
-	}
 	racers := make([]solver.Solver, 0, len(order))
 	for _, id := range order {
 		if r, ok := solver.ByID(id); ok {
