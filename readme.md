@@ -43,7 +43,7 @@ coverage: 95.3% of statements
 
 7. ![cli session](project-pictures/07-cli-session.png)
 
-   a terminal session, the classic sample piped through `dist/sudoku.exe`
+   a terminal session, the classic sample piped through `dist/sudoku`
 
 8. ![curl session](project-pictures/08-curl-session.png)
 
@@ -51,7 +51,7 @@ coverage: 95.3% of statements
 
 ## Data and formats
 
-Input grammar. Exactly 9 lines, exactly 9 characters each, `.` or a digit 1 to 9 per cell. Anything else is a parse error: the message goes to stderr prefixed `Error reading input:` and the process exits 1. The canonical example, the classic 17-clue sample:
+Input grammar. Exactly 9 lines, exactly 9 characters each, `.` or a digit 1 to 9 per cell. Anything else is a parse error: the message goes to stderr prefixed `Error reading input:` and the process exits 1. Trailing lines after 9 valid ones are ignored, a tolerance inherited from the legacy parser. The canonical example, the classic 17-clue sample:
 
 ```text
 .......1.
@@ -126,7 +126,7 @@ Solver times from one `make bench` run on the development machine, the values va
 
 The exact cover matrix. The cover solver works over a 729 by 324 boolean incidence matrix: one row per (cell, digit) pair, 81 cells times 9 digits, and four column families of 81 each, cell filled, row-unit digit, column-unit digit, box-unit digit. A row satisfies exactly 4 columns, a solution is a subset of 81 rows covering all 324 exactly once, and each selected row counts as one step. Node visits cap at `SUDOKU_COVER_NODE_CAP`, default 1048576, an unsolved report at the cap instead of an unbounded search.
 
-The omega paragraph, existence bound versus runnable. The claim omega <= 9/4 for matrix multiplication rests on a family of bilinear algorithms whose existence is formalized over the complex numbers: no implementation of that family ships here. What is runnable is the certificate machinery in `internal/matmul`: a profile checker enforcing the 4 laws, symmetry, unit row, discrete concavity, and shifted tripling `P(a, 3h+a-1) >= 3P(a, h)`. The rank profile `a+b-1` passes three laws and fails exactly tripling at `a = 2`, `h = 1`, where `P(2, 4) = 5 < 3 P(2, 1) = 6`, the geometry profile `sqrt(ab(a+b-1))` passes all four, and the cap ladder `CapT(a) = 3ln(2a-1) / (4ln a)` descends from 1.188721876 at `a = 2` to 0.787499974 at `a = 1048576` and never reaches 3/4. Tests in the package pin every one of these values. The same package supplies the boolean multiplication that precomputes the cover solver's conflict matrix once per process, with its Strassen lane switching at `SUDOKU_MATMUL_CUTOFF`, default 64.
+The omega paragraph, existence bound versus runnable. The claim omega <= 9/4 for matrix multiplication rests on a family of bilinear algorithms whose existence is formalized over the complex numbers: no implementation of that family ships here. What is runnable is the certificate machinery in `internal/matmul`: a profile checker enforcing the 4 laws, symmetry, unit row, discrete concavity, and shifted tripling `P(a, 3h+a-1) >= 3P(a, h)`. The rank profile `a+b-1` passes three laws and fails exactly tripling at `a = 2`, `h = 1`, where `P(2, 4) = 5 < 3 P(2, 1) = 6`, the geometry profile `sqrt(ab(a+b-1))` passes all four, and the cap ladder `CapT(a) = 3ln(2a-1) / (4ln a)` descends from 1.188721876 at `a = 2` to 0.787499974 at `a = 1048576` and never reaches 3/4. Tests in the package pin every one of these values. The same package supplies the boolean multiplication that precomputes the cover solver's conflict matrix once per process, and its dense Strassen lane drives the trainer's normal-equation multiply, switching at `SUDOKU_MATMUL_CUTOFF`, default 64.
 
 The database. `database/sudoku.db` is sqlite in WAL mode with a 5s busy timeout, created on first serve. Three tables: `runs(id, created_at, input81, source)` with source one of seed, web, api, `run_methods(run_id, method, grid81, steps, time_ns, solved)`, and `puzzles(id, grid81, clues, seed, created_at)`. An empty database is seeded with the classic sample as source seed, exactly once. The database directory is gitignored, delete the file to reseed.
 
@@ -160,7 +160,7 @@ cd go-sudoku-solver
 make build
 ```
 
-`make build` emits `dist/sudoku.exe` with `CGO_ENABLED=1`. Any manual `go` command needs the same treatment: `CGO_ENABLED=1 go build ./cmd/sudoku`.
+`make build` emits `dist/sudoku`, named `dist/sudoku.exe` on Windows, with `CGO_ENABLED=1`. Any manual `go` command needs the same treatment: `CGO_ENABLED=1 go build ./cmd/sudoku`.
 
 2. Run the server:
 
@@ -173,9 +173,9 @@ That is `go run ./cmd/sudoku serve --addr 127.0.0.1:8080 --db database/sudoku.db
 3. Exercise the cli:
 
 ```sh
-dist/sudoku.exe version
-dist/sudoku.exe gen --clues 30 --seed 1
-dist/sudoku.exe gen --clues 30 --seed 1 | dist/sudoku.exe
+dist/sudoku version
+dist/sudoku gen --clues 30 --seed 1
+dist/sudoku gen --clues 30 --seed 1 | dist/sudoku
 ```
 
 Bare `sudoku` and `sudoku solve` are the same command, both read the 9-line grid from stdin and print the report, so the third line pipes a generated puzzle straight back into the solver.
@@ -208,6 +208,11 @@ make coverage
 | SUDOKU_MATMUL_CUTOFF | int | matmul cutoff |
 | SUDOKU_GEN_CLUES | int | gen.clues |
 | SUDOKU_GEN_SEED | uint | gen.seed |
+| SUDOKU_EVOLVE_SEED | uint | evolve.seed |
+| SUDOKU_EVOLVE_POPULATION | int | evolve.population |
+| SUDOKU_EVOLVE_GENERATIONS | int | evolve.generations |
+| SUDOKU_TRAIN_SEEDS | int | train.seeds |
+| SUDOKU_TRAIN_TABLE | path | train.table_path |
 | SUDOKU_SERVER_ADDR | host:port | server.addr |
 | SUDOKU_SERVER_READ_TIMEOUT | duration | server.read_timeout |
 | SUDOKU_SERVER_WRITE_TIMEOUT | duration | server.write_timeout |
@@ -311,7 +316,7 @@ release-upload   publish the v1.0 GitHub release with the cross-compiled binarie
 
 ## QA harness
 
-Every change runs the verification chain through make, committing at each green step. The gates: `make test`, `make race`, `make fmt`, `make lint`, `make typecheck`, `make sloc`, `make fuzz`, `make mutate`, `make memtest`, `make e2e`. `make verify` chains test, memtest, fmt, lint, typecheck, sloc, fuzz, mutate, e2e fail-fast, and `make race` runs as its own step outside the chain. Global statement coverage holds at 95% or above over every package with no exclusions, checked by `make coverage`, with 100% the target. Pinned fixtures, per-method step semantics, the race contract, and the golden normalization rules are recorded in [docs/qa/baselines.md](docs/qa/baselines.md), with the tuning and evolution ledgers under [docs/qa/notes](docs/qa/notes/anneal-tuning.md).
+Every change runs the verification chain through make, committing at each green step. The gates: `make test`, `make race`, `make fmt`, `make lint`, `make typecheck`, `make sloc`, `make fuzz`, `make mutate`, `make memtest`, `make e2e`. `make verify` chains test, memtest, fmt, lint, typecheck, sloc, fuzz, mutate, e2e fail-fast, and `make race` runs as its own step outside the chain. Global statement coverage holds at 95% or above over every package with no exclusions, checked by `make coverage`, with 100% the target. Pinned fixtures, per-method step semantics, the race contract, and the golden normalization rules are recorded in [docs/qa/baselines.md](docs/qa/baselines.md), with the tuning ledger in [docs/qa/notes/anneal-tuning.md](docs/qa/notes/anneal-tuning.md) and the evolution ledger in [docs/qa/notes/evolve-run.md](docs/qa/notes/evolve-run.md).
 
 ## Build logs
 
