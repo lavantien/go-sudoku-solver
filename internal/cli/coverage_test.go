@@ -34,7 +34,7 @@ func TestRunCoverageBelowFloorFailsButRecordsReality(t *testing.T) {
 		t.Errorf("below floor: got pct %.1f err %v want the floor error", pct, err)
 	}
 	got, _ := os.ReadFile(readmePath)
-	if !strings.Contains(string(got), "coverage: 90.0% of statements") {
+	if !strings.Contains(string(got), "![coverage](https://img.shields.io/badge/coverage-90.0%25-brightgreen)") {
 		t.Errorf("badge must still record the real number: %s", got)
 	}
 }
@@ -58,7 +58,7 @@ func TestRunCoverageRewritesBadgeBetweenMarkers(t *testing.T) {
 		}
 	})
 	got, _ := os.ReadFile(readmePath)
-	want := "# p\n\n<!-- coverage:START -->\ncoverage: 97.5% of statements\n<!-- coverage:END -->\n"
+	want := "# p\n\n<!-- coverage:START -->\n![coverage](https://img.shields.io/badge/coverage-97.5%25-brightgreen)\n<!-- coverage:END -->\n"
 	if string(got) != want {
 		t.Errorf("readme =\n%q\nwant\n%q", got, want)
 	}
@@ -77,7 +77,7 @@ func TestRunCoverageCreatesSectionWhenAbsent(t *testing.T) {
 		}
 	})
 	got, _ := os.ReadFile(readmePath)
-	want := "no markers\n\n<!-- coverage:START -->\ncoverage: 100.0% of statements\n<!-- coverage:END -->\n"
+	want := "no markers\n\n<!-- coverage:START -->\n![coverage](https://img.shields.io/badge/coverage-100.0%25-brightgreen)\n<!-- coverage:END -->\n"
 	if string(got) != want {
 		t.Errorf("readme =\n%q\nwant\n%q", got, want)
 	}
@@ -153,7 +153,7 @@ func TestRunCoverageFlagsDriveTheRun(t *testing.T) {
 		}
 	})
 	got, _ := os.ReadFile(readmePath)
-	if !strings.Contains(string(got), "coverage: 97.5% of statements") {
+	if !strings.Contains(string(got), "![coverage](https://img.shields.io/badge/coverage-97.5%25-brightgreen)") {
 		t.Errorf("readme badge not refreshed: %s", got)
 	}
 }

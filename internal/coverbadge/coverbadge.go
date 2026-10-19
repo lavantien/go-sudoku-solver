@@ -62,7 +62,7 @@ func Pct(profile string) (float64, error) {
 }
 
 func BadgeLine(pct float64) string {
-	return fmt.Sprintf("coverage: %.1f%% of statements", pct)
+	return fmt.Sprintf("![coverage](https://img.shields.io/badge/coverage-%.1f%%25-brightgreen)", pct)
 }
 
 func Render(readme string, pct float64) string {

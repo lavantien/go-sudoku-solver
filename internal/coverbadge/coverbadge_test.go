@@ -78,10 +78,10 @@ func TestBadgeLine(t *testing.T) {
 		pct  float64
 		want string
 	}{
-		{100, "coverage: 100.0% of statements"},
-		{25, "coverage: 25.0% of statements"},
-		{0, "coverage: 0.0% of statements"},
-		{200.0 / 3.0, "coverage: 66.7% of statements"},
+		{100, "![coverage](https://img.shields.io/badge/coverage-100.0%25-brightgreen)"},
+		{25, "![coverage](https://img.shields.io/badge/coverage-25.0%25-brightgreen)"},
+		{0, "![coverage](https://img.shields.io/badge/coverage-0.0%25-brightgreen)"},
+		{200.0 / 3.0, "![coverage](https://img.shields.io/badge/coverage-66.7%25-brightgreen)"},
 	}
 	for _, c := range cases {
 		if got := BadgeLine(c.pct); got != c.want {
@@ -92,7 +92,7 @@ func TestBadgeLine(t *testing.T) {
 
 func TestRenderReplacesBetweenMarkers(t *testing.T) {
 	in := "# p\n\n<!-- coverage:START -->\nold badge\n<!-- coverage:END -->\ntrailer\n"
-	want := "# p\n\n<!-- coverage:START -->\ncoverage: 50.0% of statements\n<!-- coverage:END -->\ntrailer\n"
+	want := "# p\n\n<!-- coverage:START -->\n![coverage](https://img.shields.io/badge/coverage-50.0%25-brightgreen)\n<!-- coverage:END -->\ntrailer\n"
 	if got := Render(in, 50); got != want {
 		t.Errorf("Render =\n%q\nwant\n%q", got, want)
 	}
@@ -100,7 +100,7 @@ func TestRenderReplacesBetweenMarkers(t *testing.T) {
 
 func TestRenderCreatesSectionWhenAbsent(t *testing.T) {
 	in := "# p\nno markers\n"
-	want := "# p\nno markers\n\n<!-- coverage:START -->\ncoverage: 75.0% of statements\n<!-- coverage:END -->\n"
+	want := "# p\nno markers\n\n<!-- coverage:START -->\n![coverage](https://img.shields.io/badge/coverage-75.0%25-brightgreen)\n<!-- coverage:END -->\n"
 	if got := Render(in, 75); got != want {
 		t.Errorf("Render =\n%q\nwant\n%q", got, want)
 	}
@@ -108,14 +108,14 @@ func TestRenderCreatesSectionWhenAbsent(t *testing.T) {
 
 func TestRenderCreatesSectionWithoutTrailingNewline(t *testing.T) {
 	in := "# p"
-	want := "# p\n\n<!-- coverage:START -->\ncoverage: 50.0% of statements\n<!-- coverage:END -->\n"
+	want := "# p\n\n<!-- coverage:START -->\n![coverage](https://img.shields.io/badge/coverage-50.0%25-brightgreen)\n<!-- coverage:END -->\n"
 	if got := Render(in, 50); got != want {
 		t.Errorf("Render =\n%q\nwant\n%q", got, want)
 	}
 }
 
 func TestRenderEmptyReadme(t *testing.T) {
-	want := "<!-- coverage:START -->\ncoverage: 50.0% of statements\n<!-- coverage:END -->\n"
+	want := "<!-- coverage:START -->\n![coverage](https://img.shields.io/badge/coverage-50.0%25-brightgreen)\n<!-- coverage:END -->\n"
 	if got := Render("", 50); got != want {
 		t.Errorf("Render =\n%q\nwant\n%q", got, want)
 	}
@@ -123,7 +123,7 @@ func TestRenderEmptyReadme(t *testing.T) {
 
 func TestRenderOneSidedMarkerCreatesSection(t *testing.T) {
 	in := "<!-- coverage:START -->\nno end marker\n"
-	want := in + "\n<!-- coverage:START -->\ncoverage: 50.0% of statements\n<!-- coverage:END -->\n"
+	want := in + "\n<!-- coverage:START -->\n![coverage](https://img.shields.io/badge/coverage-50.0%25-brightgreen)\n<!-- coverage:END -->\n"
 	if got := Render(in, 50); got != want {
 		t.Errorf("Render =\n%q\nwant\n%q", got, want)
 	}
@@ -131,7 +131,7 @@ func TestRenderOneSidedMarkerCreatesSection(t *testing.T) {
 
 func TestRenderReversedMarkersCreatesSection(t *testing.T) {
 	in := EndMarker + "\nstray badge\n" + StartMarker + "\n"
-	want := in + "\n<!-- coverage:START -->\ncoverage: 50.0% of statements\n<!-- coverage:END -->\n"
+	want := in + "\n<!-- coverage:START -->\n![coverage](https://img.shields.io/badge/coverage-50.0%25-brightgreen)\n<!-- coverage:END -->\n"
 	if got := Render(in, 50); got != want {
 		t.Errorf("Render =\n%q\nwant\n%q", got, want)
 	}
