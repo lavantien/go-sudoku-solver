@@ -20,4 +20,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Replaced the legacy method set (backtracking, A-star, ant colony, minimax) with constraint propagation over bitmask candidates, exact cover over the boolean incidence matrix, simulated annealing with a restart portfolio, and a parallel portfolio race.
-- Input errors now print to stderr and exit with code 1; the happy-path stdout format is unchanged.
+- Input errors now print to stderr and exit with code 1. The happy-path stdout layout skeleton is unchanged while method labels and step semantics were replaced.
