@@ -31,6 +31,8 @@ const (
 	Version = "v1.0"
 	BinName = "sudoku"
 
+	AnnealTempMax = 1 << 50
+
 	LabelFmt = "\n%s:\n"
 
 	CmdSolve   = "solve"
@@ -233,6 +235,9 @@ func (c Config) Validate() error {
 	}
 	if c.Anneal.TempStart <= c.Anneal.TempEnd {
 		return fmt.Errorf("anneal start temperature must exceed end temperature")
+	}
+	if c.Anneal.TempStart > AnnealTempMax {
+		return fmt.Errorf("anneal start temperature must be at most %d", AnnealTempMax)
 	}
 	if c.Gen.Clues < 17 || c.Gen.Clues > Cells {
 		return fmt.Errorf("generator clues must be between 17 and %d", Cells)

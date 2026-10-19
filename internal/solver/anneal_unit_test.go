@@ -1,9 +1,11 @@
 package solver
 
 import (
+	"math"
 	"math/rand/v2"
 	"testing"
 
+	"github.com/lavantien/go-sudoku-solver/internal/config"
 	"github.com/lavantien/go-sudoku-solver/internal/sudoku"
 )
 
@@ -85,6 +87,28 @@ func TestRotateDeltaMatchesFullRecompute(t *testing.T) {
 		delta := totalCost(want) - totalCost(g)
 		if got := moveDelta(g, [3]int{a, b, c}); got != delta {
 			t.Fatalf("rotate %d %d %d: got %d want %d", a, b, c, got, delta)
+		}
+	}
+}
+
+func TestAcceptUphillCapsHugeTemperatureWithoutPanic(t *testing.T) {
+	rng := rand.New(rand.NewPCG(1, 1))
+	for _, temp := range []int64{config.AnnealTempMax, math.MaxInt64} {
+		if !acceptUphill(rng, temp, 1) {
+			t.Errorf("temp %d: the capped threshold must accept a unit climb", temp)
+		}
+	}
+}
+
+func TestAcceptUphillMatchesUncappedForLegalTemps(t *testing.T) {
+	capped := rand.New(rand.NewPCG(9, 9))
+	uncapped := rand.New(rand.NewPCG(9, 9))
+	for _, temp := range []int64{1, 100, 4000, 1 << 40, config.AnnealTempMax} {
+		for delta := 1; delta <= 8; delta++ {
+			want := uncapped.IntN(int(temp)+delta*annealScale) < int(temp)
+			if got := acceptUphill(capped, temp, delta); got != want {
+				t.Fatalf("temp %d delta %d: got %v want the uncapped draw %v", temp, delta, got, want)
+			}
 		}
 	}
 }

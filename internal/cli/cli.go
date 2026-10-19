@@ -47,7 +47,12 @@ func Main(args []string) int {
 		printUsage(os.Stderr)
 		return 2
 	}
-	if err := cmd.Run(context.Background(), config.Load(), args[1:]); err != nil {
+	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, config.RunErrFmt, config.BinName, name, err)
+		return 1
+	}
+	if err := cmd.Run(context.Background(), cfg, args[1:]); err != nil {
 		if errors.Is(err, errSilent) {
 			return 1
 		}

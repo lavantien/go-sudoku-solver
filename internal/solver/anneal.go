@@ -95,8 +95,7 @@ func annealRestart(ctx context.Context, g sudoku.Grid, c config.Config, restart 
 		*steps++
 		accept := delta <= 0
 		if !accept {
-			climb := delta * annealScale
-			accept = rng.IntN(int(temp)+climb) < int(temp)
+			accept = acceptUphill(rng, temp, delta)
 		}
 		if accept {
 			applyMove(&cur, move)
@@ -118,6 +117,14 @@ func tempAt(t0, tEnd int64, clock, span int) int64 {
 		return tEnd
 	}
 	return t
+}
+
+func acceptUphill(rng *rand.Rand, temp int64, delta int) bool {
+	if temp > config.AnnealTempMax {
+		temp = config.AnnealTempMax
+	}
+	climb := delta * annealScale
+	return rng.IntN(int(temp)+climb) < int(temp)
 }
 
 func seedGrid(g sudoku.Grid, rng *rand.Rand) sudoku.Grid {

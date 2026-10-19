@@ -178,6 +178,9 @@ func TestValidate(t *testing.T) {
 		{"zero iterations", mut(func(c *Config) { c.Anneal.Iterations = 0 })},
 		{"zero temp end", mut(func(c *Config) { c.Anneal.TempEnd = 0 })},
 		{"temp end above start", mut(func(c *Config) { c.Anneal.TempEnd = c.Anneal.TempStart + 1 })},
+		{"negative temp start", mut(func(c *Config) { c.Anneal.TempStart = -5000 })},
+		{"negative temp end", mut(func(c *Config) { c.Anneal.TempEnd = -6000 })},
+		{"temp start above ceiling", mut(func(c *Config) { c.Anneal.TempStart = AnnealTempMax + 1 })},
 		{"clues too low", mut(func(c *Config) { c.Gen.Clues = 16 })},
 		{"clues too high", mut(func(c *Config) { c.Gen.Clues = 82 })},
 		{"evolve population too small", mut(func(c *Config) { c.Evolve.Population = 2 })},
@@ -202,6 +205,7 @@ func TestValidate(t *testing.T) {
 		Defaults(),
 		mut(func(c *Config) { c.Workers = 8; c.LogLevel = "debug" }),
 		mut(func(c *Config) { c.LogLevel = "discard" }),
+		mut(func(c *Config) { c.Anneal.TempStart = AnnealTempMax }),
 	}
 	for i, c := range good {
 		if err := c.Validate(); err != nil {

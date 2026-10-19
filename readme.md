@@ -65,6 +65,20 @@ Input grammar. Exactly 9 lines, exactly 9 characters each, `.` or a digit 1 to 9
 ...8.6...
 ```
 
+The extreme complexity sample, 21 clues evolved by `tools/evolve` to force 4646 propagate steps, 72.6 times the classic sample's 64:
+
+```text
+..4...8..
+32...9.1.
+.....13..
+...1...5.
+......4.8
+.6...2...
+..8.9.5..
+...2.....
+..6.3..9.
+```
+
 The report format. `sudoku` with no command, or `sudoku solve`, reads the grid from stdin and prints one report. An `Initial Grid:` block, then for each of the four methods in registry order a separator, the method's rendered grid, its label, step count, and execution time. Real output for the sample through the first method's step count, the execution time line varies by machine:
 
 ```text
@@ -99,6 +113,16 @@ Constraint propagation with MRV backtracking:
 ```
 
 Step counts mean different work per method: propagate counts digit placements, cover counts rows selected from the matrix, anneal counts proposals evaluated, race sums every racer including unwound stragglers. The exact contract is pinned in [docs/qa/baselines.md](docs/qa/baselines.md).
+
+Solver times from one `make bench` run on the development machine, the values vary by machine:
+
+| method | sample | time per op |
+|---|---|---|
+| propagate | classic | 308 us |
+| propagate | extreme complexity | 59.8 ms |
+| cover | extreme complexity | 4.3 ms |
+| anneal | extreme complexity | 1.08 s |
+| race | extreme complexity | 11.0 ms |
 
 The exact cover matrix. The cover solver works over a 729 by 324 boolean incidence matrix: one row per (cell, digit) pair, 81 cells times 9 digits, and four column families of 81 each, cell filled, row-unit digit, column-unit digit, box-unit digit. A row satisfies exactly 4 columns, a solution is a subset of 81 rows covering all 324 exactly once, and each selected row counts as one step. Node visits cap at `SUDOKU_COVER_NODE_CAP`, default 1048576, an unsolved report at the cap instead of an unbounded search.
 
@@ -247,39 +271,40 @@ The `/api/v1` JSON surface:
 `make help` prints this table from the Makefile comments:
 
 ```text
-help           show this help
-all            run the full test suite (default)
-build          build the sudoku binary into dist/
-test           run the full test suite
-test-pkg       run one package's tests: make test-pkg PKG=./internal/config
-test-one       run one named test: make test-one PKG=./internal/cli TEST=TestMainBare
-race           go test -race over the concurrent core (RACE_PKGS)
-vet            go vet
-fmt            gofumpt all Go files
-lint           golangci-lint run
-lint-pkg       lint one package: make lint-pkg PKG=./internal/config
-typecheck      compile every package, then go vet
-sloc           enforce the 1000-line ceiling on every Go file
-fuzz           fuzz every target in the repo for FUZZ_TIME each
-fuzz-one       fuzz one target: make fuzz-one PKG=./internal/sudoku FUZZ_TARGET=FuzzParseInput
-mutate         mutation-test MUTATE_PKGS, every surviving mutant fails the build
-memtest        solver and e2e suites under a hard GOMEMLIMIT
-e2e            end-to-end suite over the real binary, a live server, and the browser UI
-verify         run the full quality chain, fail-fast
-vendor-assets  verify or refresh the vendored htmx pin in web/static
-diagrams       render every docs/diagrams/*.puml to a committed PNG beside it
-gen            print one generated puzzle in the 9-line input format
-train          regenerate the committed race-order policy table
-evolve         run the evolutionary hardest-puzzle search (tools/evolve)
-bench          benchmark the solver methods on the extreme and classic samples
-seed           delete the database so the next 'make run' re-seeds it
-tidy           go mod tidy
-clean          remove generated artifacts (database, binaries, tools)
-coverage       recompute Go test coverage and refresh the readme coverage badge
-screenshots    capture the UI and terminal journeys into project-pictures/
-release        cross-compile stripped release binaries with zig cc into dist/release
-topics         set the GitHub repository topic list
-release-upload publish the v1.0 GitHub release with the cross-compiled binaries
+help             show this help
+all              run the full test suite (default)
+build            build the sudoku binary into dist/
+test             run the full test suite
+test-pkg         run one package's tests: make test-pkg PKG=./internal/config
+test-one         run one named test: make test-one PKG=./internal/cli TEST=TestMainBare
+race             go test -race over the concurrent core (RACE_PKGS)
+vet              go vet
+fmt              gofumpt all Go files
+fmt-check        gofumpt check mode, fail on drift without editing
+lint             golangci-lint run
+lint-pkg         lint one package: make lint-pkg PKG=./internal/config
+typecheck        compile every package, then go vet
+sloc             enforce the 1000-line ceiling on every Go file
+fuzz             fuzz every target in the repo for FUZZ_TIME each
+fuzz-one         fuzz one target: make fuzz-one PKG=./internal/sudoku FUZZ_TARGET=FuzzParseInput
+mutate           mutation-test MUTATE_PKGS, every surviving mutant fails the build
+memtest          solver and e2e suites under a hard GOMEMLIMIT
+e2e              end-to-end suite over the real binary, a live server, and the browser UI
+verify           run the full quality chain, fail-fast
+vendor-assets    verify or refresh the vendored htmx pin in web/static
+diagrams         render every docs/diagrams/*.puml to a committed PNG beside it
+gen              print one generated puzzle in the 9-line input format
+train            regenerate the committed race-order policy table
+evolve           run the evolutionary hardest-puzzle search (tools/evolve)
+bench            benchmark the solver methods on the extreme and classic samples
+seed             delete the database so the next 'make run' re-seeds it
+tidy             go mod tidy
+clean            remove generated artifacts (database, binaries, tools)
+coverage         recompute no-exclusions coverage, enforce the 95% floor, refresh the badge
+screenshots      capture the UI and terminal journeys into project-pictures/
+release          cross-compile stripped release binaries with zig cc into dist/release
+topics           set the GitHub repository topic list
+release-upload   publish the v1.0 GitHub release with the cross-compiled binaries
 ```
 
 `make run`, also `make server`, starts the web server, its target name carries a space so the help filter above skips it.

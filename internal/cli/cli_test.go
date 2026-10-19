@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -159,6 +161,41 @@ func TestMainSolvePrintsFullReport(t *testing.T) {
 	}
 	if got := strings.Count(stdout, "Step count: "); got != len(config.MethodIDs) {
 		t.Errorf("step lines: got %d want %d", got, len(config.MethodIDs))
+	}
+}
+
+func TestMainValidatesEnvConfigBeforeDispatch(t *testing.T) {
+	cases := []struct {
+		name string
+		env  map[string]string
+		want string
+	}{
+		{"max int64 temp start", map[string]string{
+			"SUDOKU_ANNEAL_TEMP_START": strconv.FormatInt(math.MaxInt64, 10),
+		}, fmt.Sprintf("anneal start temperature must be at most %d", config.AnnealTempMax)},
+		{"negative temperatures", map[string]string{
+			"SUDOKU_ANNEAL_TEMP_START": "-5000",
+			"SUDOKU_ANNEAL_TEMP_END":   "-6000",
+		}, "anneal end temperature must be > 0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			stdout, stderr := withCapture(t, "", func() {
+				if code := Main([]string{config.CmdSolve}); code != 1 {
+					t.Errorf("exit code: got %d want 1", code)
+				}
+			})
+			if stdout != "" {
+				t.Errorf("stdout: got %q want empty", stdout)
+			}
+			want := fmt.Sprintf(config.RunErrFmt, config.BinName, config.CmdSolve, tc.want)
+			if stderr != want {
+				t.Errorf("stderr: got %q want %q", stderr, want)
+			}
+		})
 	}
 }
 
