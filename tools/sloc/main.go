@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/lavantien/go-sudoku-solver/internal/config"
+	"github.com/lavantien/go-sudoku-solver/internal/logging"
 )
 
 const maxSLOC = 1000
@@ -27,8 +30,11 @@ func run(args []string) int {
 	if len(args) > 0 {
 		root = args[0]
 	}
+	logger := logging.New(config.Load().LogLevel)
+	logging.Enter(logger, "sloc", "root", root)
 	v, err := walkTree(root)
 	if err != nil {
+		logging.Fail(logger, "sloc", err, "root", root)
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
@@ -36,9 +42,11 @@ func run(args []string) int {
 		fmt.Printf("SLOC FAIL %s: %d > %d\n", f.path, f.lines, maxSLOC)
 	}
 	if len(v) > 0 {
+		logging.Exit(logger, "sloc", "violations", len(v))
 		return 1
 	}
 	fmt.Println("sloc ok")
+	logging.Exit(logger, "sloc", "violations", 0)
 	return 0
 }
 

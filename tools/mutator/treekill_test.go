@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/lavantien/go-sudoku-solver/internal/config"
+	"github.com/lavantien/go-sudoku-solver/internal/logging"
 )
 
 func hangFixtureModule(t *testing.T) (string, string) {
@@ -84,7 +85,7 @@ func TestCancelKillsTheWholeTestTree(t *testing.T) {
 
 func TestTestPkgClassifiesTimeoutAsInvalid(t *testing.T) {
 	root, _ := hangFixtureModule(t)
-	if got := testPkg(root, "fixture/subject", "mutatorfixture", 3*time.Second); got != outcomeInvalid {
+	if got := testPkg(logging.New(""), root, "fixture/subject", "mutatorfixture", 3*time.Second); got != outcomeInvalid {
 		t.Fatalf("outcome: got %v want invalid", got)
 	}
 }

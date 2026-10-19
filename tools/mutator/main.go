@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -10,6 +11,7 @@ import (
 	"go/token"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +22,7 @@ import (
 	"time"
 
 	"github.com/lavantien/go-sudoku-solver/internal/config"
+	"github.com/lavantien/go-sudoku-solver/internal/logging"
 )
 
 var flips = map[string]string{
@@ -55,11 +58,23 @@ const (
 	outcomeInvalid
 )
 
+func (o testOutcome) String() string {
+	switch o {
+	case outcomeKilled:
+		return "killed"
+	case outcomeInvalid:
+		return "invalid"
+	default:
+		return "survived"
+	}
+}
+
 func main() {
 	os.Exit(cli(os.Args[1:]))
 }
 
 func cli(args []string) int {
+	logger := logging.New(config.Load().LogLevel)
 	fs := flag.NewFlagSet("mutator", flag.ContinueOnError)
 	pkgs := fs.String("packages", "", "comma-separated package dirs, e.g. internal/store")
 	tags := fs.String("tags", "", "build tags forwarded to go test")
@@ -72,7 +87,7 @@ func cli(args []string) int {
 		return 2
 	}
 	fmt.Fprintf(os.Stderr, "mutate: discovering mutants in %s\n", *pkgs)
-	rep, err := run(".", strings.Split(*pkgs, ","), *tags, *parallel)
+	rep, err := run(logger, ".", strings.Split(*pkgs, ","), *tags, *parallel)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -88,24 +103,30 @@ func cli(args []string) int {
 	return 0
 }
 
-func run(root string, pkgDirs []string, tags string, parallel int) (*report, error) {
+func run(logger *slog.Logger, root string, pkgDirs []string, tags string, parallel int) (*report, error) {
+	logging.Enter(logger, "mutate", "packages", strings.Join(pkgDirs, ","), "tags", tags, "parallel", parallel)
 	modulePath, err := modulePathOf(root)
 	if err != nil {
+		logging.Fail(logger, "mutate", err, "root", root)
 		return nil, err
 	}
-	mutants, err := discover(root, pkgDirs)
+	mutants, err := discover(logger, root, pkgDirs)
 	if err != nil {
+		logging.Fail(logger, "mutate", err)
 		return nil, err
 	}
 	if len(mutants) == 0 {
-		return nil, fmt.Errorf("no mutation points found in %v", pkgDirs)
+		err := fmt.Errorf("no mutation points found in %v", pkgDirs)
+		logging.Fail(logger, "mutate", err)
+		return nil, err
 	}
 	workers := clampParallel(parallel, len(mutants), runtime.GOMAXPROCS(0))
 
 	shadows := make([]string, workers)
 	for i := range shadows {
-		shadows[i], err = copyModule(root)
+		shadows[i], err = copyModule(logger, root)
 		if err != nil {
+			logging.Fail(logger, "mutate", err, "shadow", i)
 			cleanupShadows(shadows[:i])
 			return nil, err
 		}
@@ -126,7 +147,7 @@ func run(root string, pkgDirs []string, tags string, parallel int) (*report, err
 		go func(shadow string) {
 			defer wg.Done()
 			for i := range jobs {
-				results[i] = runMutant(shadow, mutants[i], tags, modulePath)
+				results[i] = runMutant(logger, shadow, mutants[i], tags, modulePath)
 				if n := done.Add(1); n%10 == 0 {
 					fmt.Fprintf(os.Stderr, "progress %d/%d\n", n, len(mutants))
 				}
@@ -147,24 +168,33 @@ func run(root string, pkgDirs []string, tags string, parallel int) (*report, err
 			rep.survivors = append(rep.survivors, m)
 		}
 	}
+	logging.Exit(logger, "mutate", "slots", rep.slots, "mutants", rep.mutants, "killed", rep.killed, "invalid", rep.invalid, "survived", rep.survived)
 	return rep, nil
 }
 
-func runMutant(shadow string, m mutant, tags, modulePath string) testOutcome {
+func runMutant(logger *slog.Logger, shadow string, m mutant, tags, modulePath string) testOutcome {
+	logging.Enter(logger, "mutant", "file", m.file, "line", m.line, "op", m.oldOp, "to", m.newOp)
 	dst := filepath.Join(shadow, filepath.FromSlash(m.file))
 	orig, err := os.ReadFile(dst)
 	if err != nil {
+		logging.Fail(logger, "mutant", err, "file", m.file, "line", m.line)
 		return outcomeInvalid
 	}
 	mutated := replaceAt(orig, m.offset, m.oldOp, m.newOp)
 	if mutated == nil {
+		logging.Fail(logger, "mutant", fmt.Errorf("offset %d does not hold %s", m.offset, m.oldOp), "file", m.file, "line", m.line)
 		return outcomeInvalid
 	}
 	if err := os.WriteFile(dst, mutated, 0o644); err != nil {
+		logging.Fail(logger, "mutant", err, "file", m.file, "line", m.line)
 		return outcomeInvalid
 	}
-	outcome := testPkg(shadow, pkgFor(modulePath, m.file), tags, config.MutatorTestTimeout)
+	outcome := testPkg(logger, shadow, pkgFor(modulePath, m.file), tags, config.MutatorTestTimeout)
 	_ = os.WriteFile(dst, orig, 0o644)
+	if outcome == outcomeSurvived {
+		logging.Fail(logger, "mutant", errors.New("mutant survived"), "file", m.file, "line", m.line, "op", m.oldOp, "to", m.newOp)
+	}
+	logging.Exit(logger, "mutant", "file", m.file, "line", m.line, "outcome", outcome.String())
 	return outcome
 }
 
@@ -176,7 +206,8 @@ func cleanupShadows(shadows []string) {
 	}
 }
 
-func discover(root string, pkgDirs []string) ([]mutant, error) {
+func discover(logger *slog.Logger, root string, pkgDirs []string) ([]mutant, error) {
+	logging.Enter(logger, "discover", "packages", strings.Join(pkgDirs, ","))
 	var out []mutant
 	for _, dir := range pkgDirs {
 		dir = strings.TrimSpace(dir)
@@ -202,9 +233,11 @@ func discover(root string, pkgDirs []string) ([]mutant, error) {
 			return nil
 		})
 		if err != nil {
+			logging.Fail(logger, "discover", err, "dir", dir)
 			return nil, err
 		}
 	}
+	logging.Exit(logger, "discover", "mutants", len(out))
 	return out, nil
 }
 
@@ -252,7 +285,8 @@ func replaceAt(b []byte, offset int, oldOp, newOp string) []byte {
 	return out
 }
 
-func testPkg(moduleRoot, pkg, tags string, timeout time.Duration) testOutcome {
+func testPkg(logger *slog.Logger, moduleRoot, pkg, tags string, timeout time.Duration) testOutcome {
+	logging.Enter(logger, "test", "pkg", pkg, "timeout", timeout.String())
 	ctx, cancelCtx := context.WithTimeout(context.Background(), timeout)
 	defer cancelCtx()
 	cmd := goTestCmd(ctx, moduleRoot, pkg, tags)
@@ -260,11 +294,18 @@ func testPkg(moduleRoot, pkg, tags string, timeout time.Duration) testOutcome {
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
 	if err := cmd.Run(); err != nil {
-		if ctx.Err() != nil || strings.Contains(buf.String(), "[build failed]") {
+		if ctx.Err() != nil {
+			logging.Fail(logger, "test", ctx.Err(), "pkg", pkg, "timeout", timeout.String())
 			return outcomeInvalid
 		}
+		if strings.Contains(buf.String(), "[build failed]") {
+			logging.Fail(logger, "test", err, "pkg", pkg, "build", "failed")
+			return outcomeInvalid
+		}
+		logging.Exit(logger, "test", "pkg", pkg, "outcome", outcomeKilled.String())
 		return outcomeKilled
 	}
+	logging.Exit(logger, "test", "pkg", pkg, "outcome", outcomeSurvived.String())
 	return outcomeSurvived
 }
 
@@ -322,9 +363,11 @@ func clampParallel(requested, mutantCount, procs int) int {
 	return w
 }
 
-func copyModule(root string) (string, error) {
+func copyModule(logger *slog.Logger, root string) (string, error) {
+	logging.Enter(logger, "copy", "root", root)
 	tmp, err := os.MkdirTemp("", "mutate-")
 	if err != nil {
+		logging.Fail(logger, "copy", err, "root", root)
 		return "", err
 	}
 	skip := map[string]bool{
@@ -356,9 +399,11 @@ func copyModule(root string) (string, error) {
 		return copyFile(path, dst)
 	})
 	if err != nil {
+		logging.Fail(logger, "copy", err, "root", root)
 		_ = os.RemoveAll(tmp)
 		return "", err
 	}
+	logging.Exit(logger, "copy", "shadow", tmp)
 	return tmp, nil
 }
 

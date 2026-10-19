@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/lavantien/go-sudoku-solver/internal/logging"
 )
 
 func TestDiscoverFindsBoundaryOperators(t *testing.T) {
@@ -16,7 +18,7 @@ func TestDiscoverFindsBoundaryOperators(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "s.go"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	ms, err := discover(root, []string{"sample"})
+	ms, err := discover(logging.New(""), root, []string{"sample"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +48,7 @@ func TestDiscoverSkipsTestFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "sample", "s_test.go"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	ms, err := discover(root, []string{"sample"})
+	ms, err := discover(logging.New(""), root, []string{"sample"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +167,7 @@ func writeFixtureModule(t *testing.T, testFile string) string {
 
 func TestMutateWeakFixtureReportsSurvivor(t *testing.T) {
 	root := writeFixtureModule(t, "weak_test.go")
-	rep, err := run(root, []string{"subject"}, "mutatorfixture", 1)
+	rep, err := run(logging.New(""), root, []string{"subject"}, "mutatorfixture", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +189,7 @@ func TestMutateWeakFixtureReportsSurvivor(t *testing.T) {
 
 func TestMutateStrongFixtureKillsEveryMutant(t *testing.T) {
 	root := writeFixtureModule(t, "strong_test.go")
-	rep, err := run(root, []string{"subject"}, "mutatorfixture", 1)
+	rep, err := run(logging.New(""), root, []string{"subject"}, "mutatorfixture", 1)
 	if err != nil {
 		t.Fatal(err)
 	}

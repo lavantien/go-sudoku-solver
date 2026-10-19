@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/lavantien/go-sudoku-solver/internal/logging"
 )
 
 const reexecEnv = "MUTATOR_MAIN_REEXEC"
@@ -50,7 +52,7 @@ func TestRunReportsProgressEveryTenMutants(t *testing.T) {
 		"subject/b.go":      src.String(),
 		"subject/b_test.go": rows.String(),
 	})
-	rep, err := run(root, []string{"subject"}, "", 1)
+	rep, err := run(logging.New(""), root, []string{"subject"}, "", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +122,7 @@ func TestDiscoverSkipsBlankEntriesAndReadFailures(t *testing.T) {
 		"go.mod":       "module fixture\n",
 		"subject/s.go": "package subject\n\nvar A = 1 < 2\n",
 	})
-	ms, err := discover(root, []string{"  ", "", "subject"})
+	ms, err := discover(logging.New(""), root, []string{"  ", "", "subject"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +141,7 @@ func TestRunMutantRejectsUnwritableFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
-	got := runMutant(root, mutant{file: "s.go", offset: 24, oldOp: "<", newOp: ">=", line: 3}, "", "fixture")
+	got := runMutant(logging.New(""), root, mutant{file: "s.go", offset: 24, oldOp: "<", newOp: ">=", line: 3}, "", "fixture")
 	if got != outcomeInvalid {
 		t.Errorf("readonly target: got %v want invalid", got)
 	}
@@ -150,7 +152,7 @@ func TestDiscoverReportsNonFlippableOperators(t *testing.T) {
 		"go.mod":       "module fixture\n",
 		"subject/s.go": "package subject\n\nvar A = 2 * 3\nvar B = 1 < 2\n",
 	})
-	ms, err := discover(root, []string{"subject"})
+	ms, err := discover(logging.New(""), root, []string{"subject"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +165,7 @@ func TestRunErrorsWithoutGoMod(t *testing.T) {
 	root := fixtureModule(t, map[string]string{
 		"subject/s.go": "package subject\n\nfunc Less(a, b int) bool { return a < b }\n",
 	})
-	if _, err := run(root, []string{"subject"}, "", 1); err == nil {
+	if _, err := run(logging.New(""), root, []string{"subject"}, "", 1); err == nil {
 		t.Error("missing go.mod: got nil want error")
 	}
 }
@@ -173,18 +175,18 @@ func TestRunErrorsWithoutMutationPoints(t *testing.T) {
 		"go.mod":       "module fixture\n\ngo 1.27\n",
 		"subject/s.go": "package subject\n\nvar Answer = 42\n",
 	})
-	if _, err := run(root, []string{"subject"}, "", 1); err == nil || !strings.Contains(err.Error(), "no mutation points") {
+	if _, err := run(logging.New(""), root, []string{"subject"}, "", 1); err == nil || !strings.Contains(err.Error(), "no mutation points") {
 		t.Errorf("no mutation points: got %v want the discovery error", err)
 	}
 }
 
 func TestDiscoverErrors(t *testing.T) {
 	root := t.TempDir()
-	if _, err := discover(root, []string{"gone"}); err == nil {
+	if _, err := discover(logging.New(""), root, []string{"gone"}); err == nil {
 		t.Error("missing package dir: got nil want error")
 	}
 	broken := fixtureModule(t, map[string]string{"subject/broken.go": "package subject\nfunc {"})
-	if _, err := discover(broken, []string{"subject"}); err == nil {
+	if _, err := discover(logging.New(""), broken, []string{"subject"}); err == nil {
 		t.Error("unparsable source: got nil want error")
 	}
 }
@@ -197,10 +199,10 @@ func TestModulePathOfErrorsWithoutGoMod(t *testing.T) {
 
 func TestRunMutantRejectsUnusableInputs(t *testing.T) {
 	root := fixtureModule(t, map[string]string{"s.go": "package main\n\nvar A = 1 < 2\n"})
-	if got := runMutant(root, mutant{file: "gone.go", oldOp: "<", newOp: ">="}, "", "fixture"); got != outcomeInvalid {
+	if got := runMutant(logging.New(""), root, mutant{file: "gone.go", oldOp: "<", newOp: ">="}, "", "fixture"); got != outcomeInvalid {
 		t.Errorf("missing file: got %v want invalid", got)
 	}
-	if got := runMutant(root, mutant{file: "s.go", offset: 25, oldOp: ">", newOp: "<=", line: 3}, "", "fixture"); got != outcomeInvalid {
+	if got := runMutant(logging.New(""), root, mutant{file: "s.go", offset: 25, oldOp: ">", newOp: "<=", line: 3}, "", "fixture"); got != outcomeInvalid {
 		t.Errorf("wrong old op: got %v want invalid", got)
 	}
 }
@@ -214,7 +216,7 @@ func TestCopyModuleSkipsIgnoredTrees(t *testing.T) {
 		"vendor/v.go":       "package vendor\n",
 		"internal/pkg/a.go": "package pkg\n",
 	})
-	tmp, err := copyModule(root)
+	tmp, err := copyModule(logging.New(""), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +234,7 @@ func TestCopyModuleSkipsIgnoredTrees(t *testing.T) {
 }
 
 func TestCopyModuleAndCopyFileErrors(t *testing.T) {
-	if _, err := copyModule(filepath.Join(t.TempDir(), "gone")); err == nil {
+	if _, err := copyModule(logging.New(""), filepath.Join(t.TempDir(), "gone")); err == nil {
 		t.Error("missing root: got nil want error")
 	}
 	if err := copyFile(filepath.Join(t.TempDir(), "gone"), filepath.Join(t.TempDir(), "dst")); err == nil {
@@ -253,7 +255,7 @@ func TestMutateInvalidMutantCountsInvalid(t *testing.T) {
 		"subject/target.go":    readFixture(t, "target_invalid.go"),
 		"subject/weak_test.go": readFixture(t, "weak_test.go"),
 	})
-	rep, err := run(root, []string{"subject"}, "mutatorfixture", 1)
+	rep, err := run(logging.New(""), root, []string{"subject"}, "mutatorfixture", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
