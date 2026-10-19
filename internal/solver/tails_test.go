@@ -60,15 +60,16 @@ func TestRaceParallelLaterSolvedWinnerOverridesUnsolvedFirst(t *testing.T) {
 	})
 }
 
-func TestAnnealMidLoopCancellationStopsTheWalk(t *testing.T) {
+func TestAnnealSpanFloorsWithTinyIterationBudget(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.Anneal.Restarts = 1
-	cfg.Anneal.Iterations = 50000000
-	ctx, cancel := context.WithCancel(context.Background())
-	time.AfterFunc(20*time.Millisecond, cancel)
-	got := Anneal(ctx, unsolvableGrid(t), cfg)
+	cfg.Anneal.Iterations = 4
+	got := Anneal(context.Background(), sampleGrid(t), cfg)
 	if got.Solved {
-		t.Errorf("unsolvable grid reported solved")
+		t.Errorf("four iterations cannot solve the sample")
+	}
+	if got.Steps > 4 {
+		t.Errorf("steps: got %d want at most the budget", got.Steps)
 	}
 }
 

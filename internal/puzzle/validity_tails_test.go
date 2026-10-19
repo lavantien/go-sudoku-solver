@@ -21,4 +21,13 @@ func TestValidSolutionRejectsBrokenRowsAndColumns(t *testing.T) {
 	if ValidSolution(brokenCol) {
 		t.Error("columns with duplicate digits accepted")
 	}
+	boxBroken := solved
+	var rowZero, rowThree [9]uint8
+	copy(rowZero[:], boxBroken[0:9])
+	copy(rowThree[:], boxBroken[27:36])
+	copy(boxBroken[0:9], rowThree[:])
+	copy(boxBroken[27:36], rowZero[:])
+	if ValidSolution(boxBroken) {
+		t.Error("boxes with mixed-band rows accepted")
+	}
 }
