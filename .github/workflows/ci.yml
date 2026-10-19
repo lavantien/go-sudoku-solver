@@ -33,3 +33,6 @@ jobs:
       - run: make sloc
       - run: make e2e
       - run: make coverage
+      - run: make fuzz FUZZ_TIME=10s FUZZ_PARALLEL=2
+      - run: make memtest
+      - run: make mutate MUTATE_PARALLEL=2
