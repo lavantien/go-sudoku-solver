@@ -23,7 +23,6 @@ import (
 )
 
 const (
-	corpusSeeds = 200
 	clueBase    = 24
 	clueSpan    = 27
 	clueStride  = 7
@@ -40,16 +39,17 @@ type labeled struct {
 }
 
 func main() {
-	logger := logging.New(config.Load().LogLevel)
-	if err := run(logger); err != nil {
+	cfg := config.Load()
+	logger := logging.New(cfg.LogLevel)
+	if err := run(logger, cfg); err != nil {
 		fmt.Fprintln(os.Stderr, "train:", err)
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger) error {
-	logging.Enter(logger, "train", "seeds", corpusSeeds)
-	samples, err := corpus(logger)
+func run(logger *slog.Logger, cfg config.Config) error {
+	logging.Enter(logger, "train", "seeds", cfg.Train.Seeds)
+	samples, err := corpus(logger, cfg)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	if err := emit(logger, weights); err != nil {
+	if err := emit(logger, weights, cfg); err != nil {
 		return err
 	}
 	logging.Exit(logger, "train", "methods", len(weights))
@@ -74,13 +74,13 @@ func racerMethods() []solver.Method {
 	return racers
 }
 
-func corpus(logger *slog.Logger) ([]labeled, error) {
-	logging.Enter(logger, "corpus", "seeds", corpusSeeds, "clues", clueBase, "to", clueBase+clueSpan-1)
+func corpus(logger *slog.Logger, cfg config.Config) ([]labeled, error) {
+	logging.Enter(logger, "corpus", "seeds", cfg.Train.Seeds, "clues", clueBase, "to", clueBase+clueSpan-1)
 	racers := racerMethods()
-	cfg := config.Defaults()
-	out := make([]labeled, 0, corpusSeeds)
+	raceCfg := config.Defaults()
+	out := make([]labeled, 0, cfg.Train.Seeds)
 	totals := make([]time.Duration, racerCount)
-	for seed := uint64(1); seed <= corpusSeeds; seed++ {
+	for seed := uint64(1); seed <= uint64(cfg.Train.Seeds); seed++ {
 		target := clueTarget(seed)
 		gen, err := puzzle.Generate(target, seed, solver.CountSolutions)
 		if err != nil {
@@ -88,7 +88,7 @@ func corpus(logger *slog.Logger) ([]labeled, error) {
 			logging.Fail(logger, "corpus", err, "target", target)
 			return nil, fmt.Errorf("corpus: %w", err)
 		}
-		winner, err := raceLabel(racers, gen.Grid, cfg, totals)
+		winner, err := raceLabel(racers, gen.Grid, raceCfg, totals)
 		if err != nil {
 			err = fmt.Errorf("seed %d: %w", seed, err)
 			logging.Fail(logger, "corpus", err, "clues", gen.Clues)
@@ -224,9 +224,9 @@ func invert(a matmul.Dense) (matmul.Dense, error) {
 	return out, nil
 }
 
-func emit(logger *slog.Logger, weights [][]float64) error {
+func emit(logger *slog.Logger, weights [][]float64, cfg config.Config) error {
 	logging.Enter(logger, "emit")
-	path, err := tablePath()
+	path, err := tablePath(cfg)
 	if err != nil {
 		logging.Fail(logger, "emit", err)
 		return fmt.Errorf("emit: %w", err)
@@ -239,7 +239,10 @@ func emit(logger *slog.Logger, weights [][]float64) error {
 	return nil
 }
 
-func tablePath() (string, error) {
+func tablePath(cfg config.Config) (string, error) {
+	if cfg.Train.TablePath != "" {
+		return filepath.Clean(cfg.Train.TablePath), nil
+	}
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		return "", errors.New("trainer source path unavailable")

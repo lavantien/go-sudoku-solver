@@ -90,12 +90,25 @@ type GenConfig struct {
 	Seed  uint64
 }
 
+type EvolveConfig struct {
+	Seed        uint64
+	Population  int
+	Generations int
+}
+
+type TrainConfig struct {
+	Seeds     int
+	TablePath string
+}
+
 type Config struct {
 	Workers      int
 	CoverNodeCap int
 	MatmulCutoff int
 	Anneal       AnnealConfig
 	Gen          GenConfig
+	Evolve       EvolveConfig
+	Train        TrainConfig
 	Server       ServerConfig
 	DBPath       string
 	LogLevel     string
@@ -113,7 +126,9 @@ func Defaults() Config {
 			TempStart:  4000,
 			TempEnd:    100,
 		},
-		Gen: GenConfig{Clues: 30, Seed: 1},
+		Gen:    GenConfig{Clues: 30, Seed: 1},
+		Evolve: EvolveConfig{Seed: 20261019, Population: 40, Generations: 400},
+		Train:  TrainConfig{Seeds: 200, TablePath: ""},
 		Server: ServerConfig{
 			Addr:            "127.0.0.1:8080",
 			ReadTimeout:     5 * time.Second,
@@ -157,6 +172,21 @@ func Load() Config {
 	}
 	if v, ok := envUint("SUDOKU_GEN_SEED"); ok {
 		c.Gen.Seed = v
+	}
+	if v, ok := envUint("SUDOKU_EVOLVE_SEED"); ok {
+		c.Evolve.Seed = v
+	}
+	if v, ok := envInt("SUDOKU_EVOLVE_POPULATION"); ok {
+		c.Evolve.Population = v
+	}
+	if v, ok := envInt("SUDOKU_EVOLVE_GENERATIONS"); ok {
+		c.Evolve.Generations = v
+	}
+	if v, ok := envInt("SUDOKU_TRAIN_SEEDS"); ok {
+		c.Train.Seeds = v
+	}
+	if v, ok := envString("SUDOKU_TRAIN_TABLE"); ok {
+		c.Train.TablePath = v
 	}
 	if v, ok := envString("SUDOKU_SERVER_ADDR"); ok {
 		c.Server.Addr = v
@@ -206,6 +236,15 @@ func (c Config) Validate() error {
 	}
 	if c.Gen.Clues < 17 || c.Gen.Clues > Cells {
 		return fmt.Errorf("generator clues must be between 17 and %d", Cells)
+	}
+	if c.Evolve.Population < 3 {
+		return fmt.Errorf("evolve population must be >= 3")
+	}
+	if c.Evolve.Generations < 0 {
+		return fmt.Errorf("evolve generations must be >= 0")
+	}
+	if c.Train.Seeds < 1 {
+		return fmt.Errorf("train seeds must be >= 1")
 	}
 	if c.Server.Addr == "" {
 		return fmt.Errorf("server addr must not be empty")

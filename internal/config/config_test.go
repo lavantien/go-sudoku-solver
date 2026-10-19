@@ -94,6 +94,11 @@ func TestLoadEnvOverrides(t *testing.T) {
 		{"server idle timeout", map[string]string{"SUDOKU_SERVER_IDLE_TIMEOUT": "7s"}, func(c Config) bool { return c.Server.IdleTimeout == 7*time.Second }},
 		{"server shutdown timeout", map[string]string{"SUDOKU_SERVER_SHUTDOWN_TIMEOUT": "2s"}, func(c Config) bool { return c.Server.ShutdownTimeout == 2*time.Second }},
 		{"db path", map[string]string{"SUDOKU_DB_PATH": "t/a.db"}, func(c Config) bool { return c.DBPath == "t/a.db" }},
+		{"evolve seed", map[string]string{"SUDOKU_EVOLVE_SEED": "77"}, func(c Config) bool { return c.Evolve.Seed == 77 }},
+		{"evolve population", map[string]string{"SUDOKU_EVOLVE_POPULATION": "6"}, func(c Config) bool { return c.Evolve.Population == 6 }},
+		{"evolve generations", map[string]string{"SUDOKU_EVOLVE_GENERATIONS": "3"}, func(c Config) bool { return c.Evolve.Generations == 3 }},
+		{"train seeds", map[string]string{"SUDOKU_TRAIN_SEEDS": "4"}, func(c Config) bool { return c.Train.Seeds == 4 }},
+		{"train table", map[string]string{"SUDOKU_TRAIN_TABLE": "tmp/table.go"}, func(c Config) bool { return c.Train.TablePath == "tmp/table.go" }},
 		{"log level", map[string]string{"SUDOKU_LOG_LEVEL": "debug"}, func(c Config) bool { return c.LogLevel == "debug" }},
 	}
 	for _, tc := range cases {
@@ -175,6 +180,9 @@ func TestValidate(t *testing.T) {
 		{"temp end above start", mut(func(c *Config) { c.Anneal.TempEnd = c.Anneal.TempStart + 1 })},
 		{"clues too low", mut(func(c *Config) { c.Gen.Clues = 16 })},
 		{"clues too high", mut(func(c *Config) { c.Gen.Clues = 82 })},
+		{"evolve population too small", mut(func(c *Config) { c.Evolve.Population = 2 })},
+		{"evolve negative generations", mut(func(c *Config) { c.Evolve.Generations = -1 })},
+		{"train seeds zero", mut(func(c *Config) { c.Train.Seeds = 0 })},
 		{"empty addr", mut(func(c *Config) { c.Server.Addr = "" })},
 		{"zero read timeout", mut(func(c *Config) { c.Server.ReadTimeout = 0 })},
 		{"zero shutdown timeout", mut(func(c *Config) { c.Server.ShutdownTimeout = 0 })},
