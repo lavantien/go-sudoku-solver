@@ -106,6 +106,33 @@ func TestRaceUnwindsStragglersOnWinnerCancel(t *testing.T) {
 	}
 }
 
+func TestRaceUnsolvedFirstThenSolvedWinsWithStragglerCancelled(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		racer := func(tag byte, sleep time.Duration, solved bool, steps int) Solver {
+			return func(ctx context.Context, g sudoku.Grid, c config.Config) Result {
+				select {
+				case <-ctx.Done():
+					return Result{Grid: g, Steps: 0, Solved: false}
+				case <-time.After(sleep):
+				}
+				out := g
+				out[0] = tag
+				return Result{Grid: out, Steps: steps, Solved: solved}
+			}
+		}
+		got := Race(context.Background(), sudoku.Grid{}, config.Defaults(),
+			racer(1, 10*time.Millisecond, false, 5),
+			racer(2, 30*time.Millisecond, true, 7),
+			racer(3, 50*time.Millisecond, true, 9))
+		if !got.Solved || got.Grid[0] != 2 {
+			t.Errorf("winner: got solved %v tag %d want the solved 30ms racer", got.Solved, got.Grid[0])
+		}
+		if got.Steps != 12 {
+			t.Errorf("steps: got %d want 12 summed as 5 unsolved + 7 winner + 0 cancelled straggler", got.Steps)
+		}
+	})
+}
+
 func TestRaceSequentialWorkersOne(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.Workers = 1
