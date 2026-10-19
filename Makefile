@@ -55,8 +55,7 @@ RELEASE_FLAGS := -trimpath -ldflags "-s -w"
 .PHONY: help all build test test-pkg test-one race vet fmt fmt-check lint lint-pkg typecheck sloc fuzz fuzz-one mutate memtest e2e verify vendor-assets diagrams gen train evolve bench run server seed tidy clean coverage screenshots release topics release-upload
 
 help: ## show this help
-	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\nTargets:\n"} \
-	      /^[a-zA-Z0-9_-]+:.*##/ { printf "  %-15s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	$(GO) run ./tools/help
 
 all: test ## run the full test suite (default)
 
@@ -227,5 +226,5 @@ topics: ## set the GitHub repository topic list
 	  -F 'names[]=htmx' -F 'names[]=sqlite' -F 'names[]=single-binary' \
 	  -F 'names[]=cli' -F 'names[]=puzzle-solver'
 
-release-upload: ## publish the v1.0 GitHub release with the cross-compiled binaries
+release-upload: ## publish the GitHub release with the cross-compiled binaries
 	gh release create v1.0 --title v1.0 --notes-file docs/release-notes-v1.0.md dist/release/*
