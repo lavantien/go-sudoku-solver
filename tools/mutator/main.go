@@ -18,6 +18,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/lavantien/go-sudoku-solver/internal/config"
 )
 
 var flips = map[string]string{
@@ -27,12 +29,6 @@ var flips = map[string]string{
 	"&&": "||", "||": "&&",
 	"+": "-", "-": "+",
 }
-
-const (
-	maxParallelSlots = 8
-	testTimeout      = 3 * time.Minute
-	killTreeGrace    = 10 * time.Second
-)
 
 type mutant struct {
 	file   string
@@ -67,7 +63,7 @@ func cli(args []string) int {
 	fs := flag.NewFlagSet("mutator", flag.ContinueOnError)
 	pkgs := fs.String("packages", "", "comma-separated package dirs, e.g. internal/store")
 	tags := fs.String("tags", "", "build tags forwarded to go test")
-	parallel := fs.Int("parallel", 0, "concurrent mutant slots; 0 = min(8, GOMAXPROCS), capped at 8")
+	parallel := fs.Int("parallel", 0, fmt.Sprintf("concurrent mutant slots; 0 = min(%d, GOMAXPROCS), capped at %d", config.MutatorMaxSlots, config.MutatorMaxSlots))
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -167,7 +163,7 @@ func runMutant(shadow string, m mutant, tags, modulePath string) testOutcome {
 	if err := os.WriteFile(dst, mutated, 0o644); err != nil {
 		return outcomeInvalid
 	}
-	outcome := testPkg(shadow, pkgFor(modulePath, m.file), tags, testTimeout)
+	outcome := testPkg(shadow, pkgFor(modulePath, m.file), tags, config.MutatorTestTimeout)
 	_ = os.WriteFile(dst, orig, 0o644)
 	return outcome
 }
@@ -283,7 +279,7 @@ func goTestCmd(ctx context.Context, moduleRoot, pkg, tags string) *exec.Cmd {
 	cmd.Env = os.Environ()
 	setNewProcessGroup(cmd)
 	cmd.Cancel = func() error { return killTree(cmd.Process.Pid) }
-	cmd.WaitDelay = killTreeGrace
+	cmd.WaitDelay = config.MutatorKillTreeGrace
 	return cmd
 }
 
@@ -314,8 +310,8 @@ func clampParallel(requested, mutantCount, procs int) int {
 	if w <= 0 {
 		w = procs
 	}
-	if w > maxParallelSlots {
-		w = maxParallelSlots
+	if w > config.MutatorMaxSlots {
+		w = config.MutatorMaxSlots
 	}
 	if w < 1 {
 		w = 1

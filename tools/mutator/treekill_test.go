@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lavantien/go-sudoku-solver/internal/config"
 )
 
 func hangFixtureModule(t *testing.T) (string, string) {
@@ -60,7 +62,7 @@ func TestCancelKillsTheWholeTestTree(t *testing.T) {
 	}()
 	select {
 	case <-done:
-	case <-time.After(killTreeGrace + 30*time.Second):
+	case <-time.After(config.MutatorKillTreeGrace + 30*time.Second):
 		t.Fatal("cmd.Wait never returned after the tree kill")
 	}
 	raw, err := os.ReadFile(pidFile)
@@ -71,7 +73,7 @@ func TestCancelKillsTheWholeTestTree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sleeper pid %q: %v", raw, err)
 	}
-	deadline := time.Now().Add(killTreeGrace + 20*time.Second)
+	deadline := time.Now().Add(config.MutatorKillTreeGrace + 20*time.Second)
 	for processAlive(pid) {
 		if time.Now().After(deadline) {
 			t.Fatalf("sleeper process %d survived the tree kill", pid)
