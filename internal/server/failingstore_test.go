@@ -89,6 +89,11 @@ func TestStoreFailuresReturnServerError(t *testing.T) {
 			resp, raw := postForm(t, c, ts.URL+config.FragmentSolvePath, form)
 			return resp.StatusCode, raw
 		}, false, ""},
+		{"generate fragment", func(t *testing.T) (int, string) {
+			form := url.Values{config.FlagClues: {"40"}, config.FlagSeed: {"7"}}
+			resp, raw := postForm(t, c, ts.URL+config.FragmentGenPath, form)
+			return resp.StatusCode, raw
+		}, false, ""},
 		{"history page", func(t *testing.T) (int, string) {
 			return getBody(t, c, ts.URL+config.HistoryPagePath)
 		}, false, ""},

@@ -734,6 +734,61 @@ func TestSolveFragmentRejectsInvalidCharacter(t *testing.T) {
 	}
 }
 
+func TestAPIGenerateRejectsMalformedBody(t *testing.T) {
+	srv, _ := newServer(t)
+	ts, c := startSite(t, srv.Handler())
+	resp, raw := postJSON(t, c, ts.URL+config.APIGeneratePath, "{not json")
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("malformed generate status: got %d want 400: %s", resp.StatusCode, raw)
+	}
+	var e errorJSON
+	decodeInto(t, raw, &e)
+	if e.Error == "" {
+		t.Errorf("error envelope empty: %q", raw)
+	}
+}
+
+func TestAPIPageParamsClampAndReject(t *testing.T) {
+	srv, st := newServer(t)
+	ts, c := startSite(t, srv.Handler())
+	for range config.APIPageLimitMax {
+		if _, err := st.InsertRun(puzzle.Sample81, "test", nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var runs runsJSON
+	code, _ := decodeJSON(t, c, ts.URL+config.APIRunsPath+"?"+config.QueryLimit+"=500", &runs)
+	if code != http.StatusOK {
+		t.Fatalf("oversized limit status: got %d want 200", code)
+	}
+	if len(runs.Runs) != config.APIPageLimitMax {
+		t.Errorf("oversized limit clamped: got %d runs want %d", len(runs.Runs), config.APIPageLimitMax)
+	}
+	for _, q := range []string{
+		config.APIRunsPath + "?" + config.QueryOffset + "=-1",
+		config.APIPuzzlesPath + "?" + config.QueryOffset + "=x",
+		config.APIPuzzlesPath + "?" + config.QueryLimit + "=0",
+	} {
+		code, raw := getBody(t, c, ts.URL+q)
+		if code != http.StatusBadRequest {
+			t.Errorf("%s: status %d want 400: %s", q, code, raw)
+		}
+	}
+}
+
+func TestSolveFragmentRejectsWrongLength(t *testing.T) {
+	srv, _ := newServer(t)
+	ts, c := startSite(t, srv.Handler())
+	form := url.Values{config.FormGrid81: {strings.Repeat("5", config.Cells-1)}}
+	resp, body := postForm(t, c, ts.URL+config.FragmentSolvePath, form)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("short grid status: got %d want 400: %s", resp.StatusCode, body)
+	}
+	if !strings.Contains(body, "expected 81") {
+		t.Errorf("body lacks the length cue: %q", body)
+	}
+}
+
 func TestServerGracefulShutdownNoLeak(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	path := filepath.Join(t.TempDir(), "shutdown.db")
